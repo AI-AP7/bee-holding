@@ -2,12 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from "@/lib/supabase";
 
 const serviceAreas = [
   { code: "MD", name: "Maryland", baseFee: 0 },
@@ -51,6 +46,17 @@ export default function BookingSection() {
     specialRequests: "",
   });
 
+  const dates = Array.from({ length: 14 }, (_, i) => {
+    const date = new Date();
+    date.setDate(date.getDate() + i);
+    return {
+      date: date.toISOString().split("T")[0],
+      day: date.toLocaleDateString("en-US", { weekday: "short" }),
+      num: date.getDate(),
+      month: date.toLocaleDateString("en-US", { month: "short" }),
+    };
+  });
+
   useEffect(() => {
     async function fetchData() {
       const { data: vehiclesData } = await supabase
@@ -61,9 +67,11 @@ export default function BookingSection() {
       
       if (vehiclesData) setVehicles(vehiclesData);
 
-      const today = new Date();
-      const startDate = today.toISOString().split("T")[0];
-      const endDate = new Date(today.setDate(today.getDate() + 30)).toISOString().split("T")[0];
+      const now = new Date();
+      const startDate = now.toISOString().split("T")[0];
+      const futureDate = new Date(now);
+      futureDate.setDate(futureDate.getDate() + 30);
+      const endDate = futureDate.toISOString().split("T")[0];
       
       const { data: blocks } = await supabase
         .from("availability_blocks")
@@ -98,18 +106,6 @@ export default function BookingSection() {
 
     fetchData();
   }, []);
-
-  const today = new Date();
-  const dates = Array.from({ length: 14 }, (_, i) => {
-    const date = new Date(today);
-    date.setDate(today.getDate() + i);
-    return {
-      date: date.toISOString().split("T")[0],
-      day: date.toLocaleDateString("en-US", { weekday: "short" }),
-      num: date.getDate(),
-      month: date.toLocaleDateString("en-US", { month: "short" }),
-    };
-  });
 
   const times = Array.from({ length: 24 }, (_, i) => {
     const hour = i.toString().padStart(2, "0");

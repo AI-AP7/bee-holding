@@ -2,15 +2,10 @@
 
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 import { useState, useEffect } from "react";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-interface Vehicle {
+interface FleetVehicle {
   id: string;
   name: string;
   slug: string;
@@ -23,7 +18,7 @@ interface Vehicle {
 }
 
 export default function FleetShowcase() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
