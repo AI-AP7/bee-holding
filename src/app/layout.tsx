@@ -59,6 +59,7 @@ export default function RootLayout({
             __html: JSON.stringify(organizationSchema),
           }}
         />
+        <script src="https://web.squarecdn.com/v1/payments.js"></script>
       </head>
       <body
         className={`${spaceGrotesk.variable} ${manrope.variable} ${jetbrainsMono.variable} antialiased`}

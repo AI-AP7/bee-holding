@@ -2,18 +2,18 @@
 
 import { motion } from "framer-motion";
 import { useModalStore } from "@/lib/store";
-import Image from "next/image";
 
 const aboutContent = {
-  imageUrl: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=600&q=80",
+  imageUrl: "/john_bernard.png",
+  title: "Founder/Chairman",
   facts: [
-    "Established in 2024 with a vision for excellence",
-    "Operating across Maryland, DC, Virginia, and Pennsylvania",
-    "Committed to premium service and safety standards",
+    "Black Family Owned",
+    "2 Businesses",
+    "20+ Years of Experience",
   ],
   description:
-    "Black Excellence Enterprises is a diversified holding company dedicated to delivering exceptional service across complementary industries. Our portfolio of subsidiaries includes UFirst Limos, providing luxury transportation, and K & J Sound Company, offering professional audio solutions. Together, we embody our commitment to excellence in every interaction.",
-  tags: ["Strategic Leadership", "Premium Services", "Innovation", "Safety First"],
+    "Black Excellence Enterprise is a black owned corporation committed to delivering the highest quality service with every experience. Our subsidiaries have grown under the vision of our founder and chairman John Bernard. He is a husband, father, minister, and serial entrepreneur with nearly three decades of experience. We strive to bring our clients tailor made solutions that embody elegance and class.",
+  tags: ["Family Owned", "Premium Service", "Strategic Vision", "Industry Leaders"],
 };
 
 export default function AboutModal() {
@@ -29,14 +29,16 @@ export default function AboutModal() {
     >
       <div className="grid md:grid-cols-2">
         {/* Left: Image */}
-        <div className="relative h-64 md:h-auto">
-          <Image
+        <div className="relative h-64 md:h-auto bg-surface-mid">
+          <img
             src={aboutContent.imageUrl}
             alt="Black Excellence Enterprises leadership"
-            fill
-            className="object-cover"
+            className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-surface-high via-transparent to-transparent md:bg-gradient-to-r" />
+          <div className="absolute bottom-6 left-6 px-4 py-2 bg-gold text-black font-bold text-sm uppercase tracking-wider" style={{ fontFamily: "var(--font-mono)" }}>
+            {aboutContent.title}
+          </div>
         </div>
 
         {/* Right: Content */}
@@ -76,7 +78,7 @@ export default function AboutModal() {
                 transition={{ delay: index * 0.1 + 0.2 }}
                 className="flex items-start gap-3"
               >
-                <span className="w-2 h-2 rounded-full bg-tertiary mt-2 flex-shrink-0" />
+                <span className="w-2 h-2 rounded-full bg-gold mt-2 flex-shrink-0" />
                 <span className="text-on-surface">{fact}</span>
               </motion.li>
             ))}

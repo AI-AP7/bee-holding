@@ -46,7 +46,7 @@ export default function ContactModal() {
       <div className="space-y-4 mb-8">
         {/* Email */}
         <a
-          href="mailto:info@blkexcellenceenterprise.com"
+          href="mailto:ufirstlimo@gmail.com"
           className="flex items-center gap-4 p-4 bg-surface-mid rounded-lg hover:bg-surface-highest transition-colors group"
         >
           <div className="w-12 h-12 flex items-center justify-center bg-surface-highest rounded-lg">
@@ -57,7 +57,7 @@ export default function ContactModal() {
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
-              className="text-tertiary"
+              className="text-gold"
             >
               <rect x="2" y="4" width="20" height="16" rx="2" />
               <path d="M22 6l-10 7L2 6" />
@@ -66,7 +66,7 @@ export default function ContactModal() {
           <div>
             <p className="text-xs uppercase tracking-wider text-on-surface-variant mb-1">Email</p>
             <p className="text-on-surface group-hover:text-primary transition-colors">
-              info@blkexcellenceenterprise.com
+              ufirstlimo@gmail.com
             </p>
           </div>
         </a>
@@ -84,7 +84,7 @@ export default function ContactModal() {
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
-              className="text-tertiary"
+              className="text-gold"
             >
               <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" />
             </svg>
@@ -107,7 +107,7 @@ export default function ContactModal() {
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
-              className="text-tertiary"
+              className="text-lime"
             >
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
               <circle cx="12" cy="10" r="3" />

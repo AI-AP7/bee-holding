@@ -3,9 +3,12 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useModalStore } from "@/lib/store";
 import { useEffect } from "react";
-import AboutModal from "./AboutModal";
-import CompaniesModal from "./CompaniesModal";
-import ContactModal from "./ContactModal";
+import dynamic from "next/dynamic";
+
+const AboutModal = dynamic(() => import("./AboutModal"));
+const CompaniesModal = dynamic(() => import("./CompaniesModal"));
+const ContactModal = dynamic(() => import("./ContactModal"));
+
 
 export default function ModalSystem() {
   const { activeModal, isModalOpen, closeModal } = useModalStore();

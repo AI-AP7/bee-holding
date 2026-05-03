@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useModalStore } from "@/lib/store";
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
+import SoundInquiryModal from "./SoundInquiryModal";
 
 interface Company {
   id: string;
@@ -13,7 +15,6 @@ interface Company {
   imageUrl: string;
   cta: string;
   href: string;
-  isLimo: boolean;
 }
 
 const companies: Company[] = [
@@ -23,40 +24,42 @@ const companies: Company[] = [
     tagline: "Premium Transportation",
     description:
       "Luxury limousine service serving Maryland, DC, Virginia, and Pennsylvania. Experience elegance on wheels with our premium fleet.",
-    imageUrl:
-      "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800&q=80",
+    imageUrl: "/cadilac_esv.jpg",
     cta: "Book Now",
     href: "/limo",
-    isLimo: true,
   },
   {
     id: "kj-sound",
     name: "K & J Sound Company",
     tagline: "Professional Audio",
     description:
-      "Professional audio and event production services. From intimate gatherings to large-scale events, we deliver crystal-clear sound.",
-    imageUrl:
-      "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=800&q=80",
-    cta: "Email Inquiry",
-    href: "mailto:info@blkexcellenceenterprise.com",
-    isLimo: false,
+      "Professional audio solutions. From custom lighting and sound installations, to top quality live sound and event production, We bring the our clients the best.",
+    imageUrl: "/kj_sound.jpg",
+    cta: "Learn More",
+    href: "/sound",
   },
 ];
 
 export default function CompaniesModal() {
   const { closeModal, companiesView, setCompaniesView, selectedCompanyIndex, setSelectedCompany } =
     useModalStore();
+  const [showSoundInquiry, setShowSoundInquiry] = useState(false);
 
   const currentCompany = companies[selectedCompanyIndex];
 
+  const handleSoundInquiry = () => {
+    setShowSoundInquiry(true);
+  };
+
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95, y: 20 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95, y: 20 }}
-      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="relative w-full max-w-5xl bg-surface-high rounded-xl overflow-hidden ghost-border"
-    >
+    <>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        className="relative w-full max-w-5xl bg-surface-high rounded-xl overflow-hidden ghost-border"
+      >
       {/* Header */}
       <div className="flex items-center justify-between p-6 border-b border-outline/15">
         <h2
@@ -98,9 +101,10 @@ export default function CompaniesModal() {
             companies={companies}
             currentIndex={selectedCompanyIndex}
             setCurrentIndex={setSelectedCompany}
+            onSoundInquiry={handleSoundInquiry}
           />
         ) : (
-          <ListView companies={companies} onClose={closeModal} />
+          <ListView companies={companies} onClose={closeModal} onSoundInquiry={handleSoundInquiry} />
         )}
       </div>
 
@@ -122,6 +126,9 @@ export default function CompaniesModal() {
         </svg>
       </button>
     </motion.div>
+
+    <SoundInquiryModal isOpen={showSoundInquiry} onClose={() => setShowSoundInquiry(false)} />
+    </>
   );
 }
 
@@ -129,10 +136,12 @@ function SliderView({
   companies,
   currentIndex,
   setCurrentIndex,
+  onSoundInquiry,
 }: {
   companies: Company[];
   currentIndex: number;
   setCurrentIndex: (index: number) => void;
+  onSoundInquiry: () => void;
 }) {
   const current = companies[currentIndex];
 
@@ -169,7 +178,7 @@ function SliderView({
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <p className="text-tertiary text-xs uppercase tracking-widest mb-2" style={{ fontFamily: "var(--font-mono)" }}>
+              <p className="text-gold text-xs uppercase tracking-widest mb-2" style={{ fontFamily: "var(--font-mono)" }}>
                 {current.tagline}
               </p>
               <h3 className="text-display text-4xl text-primary mb-3" style={{ fontFamily: "var(--font-display)" }}>
@@ -178,21 +187,22 @@ function SliderView({
               <p className="text-on-surface-variant max-w-xl mb-6">
                 {current.description}
               </p>
-              <Link
-                href={current.href}
-                className={`inline-block px-8 py-3 font-bold text-sm uppercase tracking-wider transition-all ${
-                  current.isLimo
-                    ? "bg-lime text-black hover:bg-lime/90"
-                    : "btn-ghost"
-                }`}
-                onClick={() => {
-                  if (current.isLimo) {
-                    window.location.href = current.href;
-                  }
-                }}
-              >
-                {current.cta}
-              </Link>
+              {current.href.startsWith("/") ? (
+                <Link
+                  href={current.href}
+                  className="inline-block px-8 py-3 font-bold text-sm uppercase tracking-wider transition-all btn-gold"
+                >
+                  {current.cta}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onSoundInquiry}
+                  className="inline-block px-8 py-3 font-bold text-sm uppercase tracking-wider transition-all btn-ghost"
+                >
+                  {current.cta}
+                </button>
+              )}
             </motion.div>
           </AnimatePresence>
         </div>
@@ -247,9 +257,11 @@ function SliderView({
 function ListView({
   companies,
   onClose,
+  onSoundInquiry,
 }: {
   companies: Company[];
   onClose: () => void;
+  onSoundInquiry: () => void;
 }) {
   return (
     <div className="grid md:grid-cols-2 gap-6">
@@ -271,7 +283,7 @@ function ListView({
             <div className="absolute inset-0 bg-gradient-to-t from-surface-high via-transparent to-transparent" />
           </div>
           <div className="p-6">
-            <p className="text-tertiary text-xs uppercase tracking-widest mb-2" style={{ fontFamily: "var(--font-mono)" }}>
+            <p className="text-gold text-xs uppercase tracking-widest mb-2" style={{ fontFamily: "var(--font-mono)" }}>
               {company.tagline}
             </p>
             <h3 className="text-display text-2xl text-primary mb-2" style={{ fontFamily: "var(--font-display)" }}>
@@ -280,16 +292,22 @@ function ListView({
             <p className="text-on-surface-variant text-sm mb-4 line-clamp-2">
               {company.description}
             </p>
-            <Link
-              href={company.href}
-              className={`inline-block px-6 py-2 font-bold text-sm uppercase tracking-wider transition-all ${
-                company.isLimo
-                  ? "bg-lime text-black hover:bg-lime/90"
-                  : "btn-ghost"
-              }`}
-            >
-              {company.cta}
-            </Link>
+            {company.href.startsWith("/") ? (
+              <Link
+                href={company.href}
+                className="inline-block px-6 py-2 font-bold text-sm uppercase tracking-wider transition-all btn-gold"
+              >
+                {company.cta}
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={onSoundInquiry}
+                className="inline-block px-6 py-2 font-bold text-sm uppercase tracking-wider transition-all btn-ghost"
+              >
+                {company.cta}
+              </button>
+            )}
           </div>
         </motion.div>
       ))}

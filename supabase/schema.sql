@@ -5,11 +5,11 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Vehicle fleet configuration
-CREATE TABLE vehicles (
+CREATE TABLE IF NOT EXISTS vehicles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   slug TEXT UNIQUE NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('stretch_limo', 'suv', 'sedan')),
+  type TEXT NOT NULL CHECK (type IN ('stretch_limo', 'suv', 'sedan', 'party_bus')),
   description TEXT,
   capacity INTEGER NOT NULL CHECK (capacity > 0),
   luggage_capacity INTEGER NOT NULL CHECK (luggage_capacity >= 0),
@@ -17,6 +17,7 @@ CREATE TABLE vehicles (
   hourly_rate_distance DECIMAL(10,2) NOT NULL CHECK (hourly_rate_distance > 0),
   four_hour_block_local DECIMAL(10,2) CHECK (four_hour_block_local > 0),
   four_hour_block_distance DECIMAL(10,2) CHECK (four_hour_block_distance > 0),
+  min_hours INTEGER DEFAULT 1,
   image_url TEXT,
   features JSONB DEFAULT '[]',
   is_active BOOLEAN DEFAULT true,
@@ -25,8 +26,20 @@ CREATE TABLE vehicles (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Add is_active column if it doesn't exist (for existing databases)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vehicles' AND column_name = 'is_active') THEN
+    ALTER TABLE vehicles ADD COLUMN is_active BOOLEAN DEFAULT true;
+  END IF;
+  
+  -- Update type constraint if necessary
+  ALTER TABLE vehicles DROP CONSTRAINT IF EXISTS vehicles_type_check;
+  ALTER TABLE vehicles ADD CONSTRAINT vehicles_type_check CHECK (type IN ('stretch_limo', 'suv', 'sedan', 'party_bus'));
+END $$;
+
 -- Availability blocks (blocks booking slots including buffer time)
-CREATE TABLE availability_blocks (
+CREATE TABLE IF NOT EXISTS availability_blocks (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   vehicle_id UUID NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
   block_date DATE NOT NULL,
@@ -41,7 +54,7 @@ CREATE TABLE availability_blocks (
 );
 
 -- Service area configuration
-CREATE TABLE service_areas (
+CREATE TABLE IF NOT EXISTS service_areas (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   state_code TEXT NOT NULL CHECK (state_code IN ('MD', 'DC', 'VA', 'PA')),
   state_name TEXT NOT NULL,
@@ -53,7 +66,7 @@ CREATE TABLE service_areas (
 );
 
 -- Reviews and testimonials
-CREATE TABLE reviews (
+CREATE TABLE IF NOT EXISTS reviews (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   vehicle_id UUID REFERENCES vehicles(id) ON DELETE SET NULL,
   reviewer_name TEXT NOT NULL,
@@ -67,7 +80,7 @@ CREATE TABLE reviews (
 );
 
 -- Booking references (links to Square, tracks our internal metadata)
-CREATE TABLE booking_references (
+CREATE TABLE IF NOT EXISTS booking_references (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   vehicle_id UUID NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
   square_booking_id TEXT UNIQUE NOT NULL,
@@ -90,14 +103,14 @@ CREATE TABLE booking_references (
 );
 
 -- Indexes for common queries
-CREATE INDEX idx_availability_vehicle_date ON availability_blocks(vehicle_id, block_date);
-CREATE INDEX idx_availability_blocks_date ON availability_blocks(block_date);
-CREATE INDEX idx_vehicles_active ON vehicles(is_active) WHERE is_active = true;
-CREATE INDEX idx_vehicles_type ON vehicles(type);
-CREATE INDEX idx_booking_references_date ON booking_references(booking_date);
-CREATE INDEX idx_booking_references_vehicle ON booking_references(vehicle_id);
-CREATE INDEX idx_reviews_approved ON reviews(is_approved) WHERE is_approved = true;
-CREATE INDEX idx_service_areas_active ON service_areas(is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_availability_vehicle_date ON availability_blocks(vehicle_id, block_date);
+CREATE INDEX IF NOT EXISTS idx_availability_blocks_date ON availability_blocks(block_date);
+CREATE INDEX IF NOT EXISTS idx_vehicles_active ON vehicles(is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_vehicles_type ON vehicles(type);
+CREATE INDEX IF NOT EXISTS idx_booking_references_date ON booking_references(booking_date);
+CREATE INDEX IF NOT EXISTS idx_booking_references_vehicle ON booking_references(vehicle_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_approved ON reviews(is_approved) WHERE is_approved = true;
+CREATE INDEX IF NOT EXISTS idx_service_areas_active ON service_areas(is_active) WHERE is_active = true;
 
 -- Row Level Security (RLS) policies
 
@@ -108,35 +121,43 @@ ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE booking_references ENABLE ROW LEVEL SECURITY;
 
 -- Public read access for vehicles, service areas (for booking page)
+DROP POLICY IF EXISTS "Public can view active vehicles" ON vehicles;
 CREATE POLICY "Public can view active vehicles"
   ON vehicles FOR SELECT
   USING (is_active = true);
 
+DROP POLICY IF EXISTS "Public can view service areas" ON service_areas;
 CREATE POLICY "Public can view service areas"
   ON service_areas FOR SELECT
   USING (is_active = true);
 
+DROP POLICY IF EXISTS "Public can view approved reviews" ON reviews;
 CREATE POLICY "Public can view approved reviews"
   ON reviews FOR SELECT
   USING (is_approved = true);
 
 -- Service role has full access (for API routes)
+DROP POLICY IF EXISTS "Service role full access vehicles" ON vehicles;
 CREATE POLICY "Service role full access vehicles"
   ON vehicles FOR ALL
   USING (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS "Service role full access availability" ON availability_blocks;
 CREATE POLICY "Service role full access availability"
   ON availability_blocks FOR ALL
   USING (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS "Service role full access service_areas" ON service_areas;
 CREATE POLICY "Service role full access service_areas"
   ON service_areas FOR ALL
   USING (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS "Service role full access reviews" ON reviews;
 CREATE POLICY "Service role full access reviews"
   ON reviews FOR ALL
   USING (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS "Service role full access booking_references" ON booking_references;
 CREATE POLICY "Service role full access booking_references"
   ON booking_references FOR ALL
   USING (auth.role() = 'service_role');
@@ -150,10 +171,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS vehicles_updated_at ON vehicles;
 CREATE TRIGGER vehicles_updated_at
   BEFORE UPDATE ON vehicles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS booking_references_updated_at ON booking_references;
 CREATE TRIGGER booking_references_updated_at
   BEFORE UPDATE ON booking_references
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -197,7 +220,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Seed data: Vehicles
-INSERT INTO vehicles (name, slug, type, description, capacity, luggage_capacity, hourly_rate_local, hourly_rate_distance, four_hour_block_local, four_hour_block_distance, image_url, features, display_order) VALUES
+INSERT INTO vehicles (name, slug, type, description, capacity, luggage_capacity, hourly_rate_local, hourly_rate_distance, four_hour_block_local, four_hour_block_distance, image_url, features, display_order, is_active, min_hours) VALUES
 (
   'Black Stretch Limo',
   'black-stretch-limo',
@@ -209,8 +232,10 @@ INSERT INTO vehicles (name, slug, type, description, capacity, luggage_capacity,
   170.00,
   510.00,
   680.00,
-  'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800&q=80',
+  '/black_stretch.jpg',
   '["Leather interior", "Privacy partition", "Champagne bar", "Premium sound system", "LED mood lighting", "Tinted windows"]',
+  1,
+  true,
   1
 ),
 (
@@ -218,30 +243,34 @@ INSERT INTO vehicles (name, slug, type, description, capacity, luggage_capacity,
   'white-stretch-limo',
   'stretch_limo',
   'The elegant white stretch limousine combines classic sophistication with modern amenities. Ideal for bridal parties and luxury transportation.',
-  8,
+  12,
   4,
-  140.00,
-  170.00,
-  510.00,
-  680.00,
-  'https://images.unsplash.com/photo-1563720223185-11003d516935?w=800&q=80',
+  160.00,
+  190.00,
+  560.00,
+  720.00,
+  '/white_stretch.webp',
   '["Leather interior", "Privacy partition", "Champagne bar", "Premium sound system", "Fiber optic lighting", "Tinted windows"]',
-  2
+  2,
+  true,
+  4
 ),
 (
-  'Escalade ESV',
+  'Escalade',
   'escalade-esv',
   'suv',
-  'The Cadillac Escalade ESV provides expansive luxury with extra cargo space. Perfect for larger groups or those needing additional luggage capacity.',
+  'The Cadillac Escalade provides expansive luxury with extra cargo space. Perfect for larger groups or those needing additional luggage capacity.',
   6,
   6,
   170.00,
   200.00,
   600.00,
   750.00,
-  'https://images.unsplash.com/photo-1553440569-bcc63803a83d?w=800&q=80',
+  '/cadilac_esv.jpg',
   '["Plush leather seats", "Third row seating", "Entertainment system", "Extra luggage space", "Climate control", "WiFi hotspot"]',
-  3
+  3,
+  true,
+  4
 ),
 (
   'Escalade V',
@@ -254,8 +283,10 @@ INSERT INTO vehicles (name, slug, type, description, capacity, luggage_capacity,
   195.00,
   580.00,
   720.00,
-  'https://images.unsplash.com/photo-1544636331-e26879cd4d9b?w=800&q=80',
+  '/cad_v.jpeg',
   '["Premium leather seats", "Panoramic sunroof", "Entertainment system", "Ample luggage space", "Advanced safety features"]',
+  4,
+  false,
   4
 ),
 (
@@ -265,21 +296,45 @@ INSERT INTO vehicles (name, slug, type, description, capacity, luggage_capacity,
   'The Mercedes S-Class represents the pinnacle of luxury sedan engineering. Perfect for executive transportation and intimate celebrations.',
   4,
   3,
-  140.00,
-  170.00,
-  510.00,
+  160.00,
+  190.00,
+  560.00,
   680.00,
-  'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=800&q=80',
+  '/s-class.webp',
   '["Executive leather interior", "Massage seats", "Premium sound system", "Privacy glass", "Climate control", "USB charging"]',
-  5
-);
+  5,
+  true,
+  4
+),
+(
+  'Party Bus',
+  'party-bus',
+  'party_bus',
+  'Our luxury party bus accommodates up to 20 passengers with a full entertainment system, LED lighting, and premium sound. Perfect for bachelor/bachelorette parties, group celebrations, and night-on-the-town events.',
+  20,
+  10,
+  230.00,
+  270.00,
+  820.00,
+  1000.00,
+  '/party-bus.jpg',
+  '["Premium sound system", "LED mood lighting", "Dance floor", "Privacy partition", "Bar area", "Climate control", "Entertainment system"]',
+  6,
+  true,
+  4
+)
+ON CONFLICT (slug) DO UPDATE SET
+  hourly_rate_local = EXCLUDED.hourly_rate_local,
+  four_hour_block_local = EXCLUDED.four_hour_block_local,
+  min_hours = EXCLUDED.min_hours;
 
 -- Seed data: Service areas
 INSERT INTO service_areas (state_code, state_name, base_fee) VALUES
 ('MD', 'Maryland', 0),
 ('DC', 'District of Columbia', 25),
 ('VA', 'Virginia', 50),
-('PA', 'Pennsylvania', 75);
+('PA', 'Pennsylvania', 75)
+ON CONFLICT (state_code, county) DO NOTHING;
 
 -- Seed data: Sample approved reviews
 INSERT INTO reviews (vehicle_id, reviewer_name, rating, comment, source, is_approved, is_featured)

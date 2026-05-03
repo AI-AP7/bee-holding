@@ -2,8 +2,6 @@
 
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { supabase } from "@/lib/supabase";
-import { useState, useEffect } from "react";
 
 interface FleetVehicle {
   id: string;
@@ -13,39 +11,79 @@ interface FleetVehicle {
   capacity: number;
   luggage_capacity: number;
   hourly_rate_local: number;
+  min_hours: number;
   image_url: string;
   features: string[];
 }
 
-export default function FleetShowcase() {
-  const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
-  const [loading, setLoading] = useState(true);
+const FLEET_DATA: FleetVehicle[] = [
+  {
+    id: "1",
+    name: "Black Stretch Limo",
+    slug: "black-stretch-limo",
+    type: "stretch_limo",
+    capacity: 8,
+    luggage_capacity: 4,
+    hourly_rate_local: 140,
+    min_hours: 1,
+    image_url: "/black_stretch.jpg",
+    features: ["Leather interior", "Privacy partition", "Champagne bar", "Premium sound system", "LED mood lighting", "Tinted windows"],
+  },
+  {
+    id: "2",
+    name: "White Stretch Limo",
+    slug: "white-stretch-limo",
+    type: "stretch_limo",
+    capacity: 12,
+    luggage_capacity: 4,
+    hourly_rate_local: 160,
+    min_hours: 4,
+    image_url: "/white_stretch.webp",
+    features: ["Leather interior", "Privacy partition", "Champagne bar", "Premium sound system", "Fiber optic lighting", "Tinted windows"],
+  },
+  {
+    id: "3",
+    name: "Escalade",
+    slug: "escalade-esv",
+    type: "suv",
+    capacity: 6,
+    luggage_capacity: 6,
+    hourly_rate_local: 170,
+    min_hours: 4,
+    image_url: "/cadilac_esv.jpg",
+    features: ["Plush leather seats", "Third row seating", "Entertainment system", "Extra luggage space", "Climate control", "WiFi hotspot"],
+  },
+  {
+    id: "4",
+    name: "Mercedes S-Class",
+    slug: "mercedes-s-class",
+    type: "sedan",
+    capacity: 4,
+    luggage_capacity: 3,
+    hourly_rate_local: 160,
+    min_hours: 4,
+    image_url: "/s-class.webp",
+    features: ["Executive leather interior", "Massage seats", "Premium sound system", "Privacy glass", "Climate control", "USB charging"],
+  },
+  {
+    id: "5",
+    name: "Party Bus",
+    slug: "party-bus",
+    type: "party_bus",
+    capacity: 20,
+    luggage_capacity: 10,
+    hourly_rate_local: 230,
+    min_hours: 4,
+    image_url: "/party-bus.jpg",
+    features: ["Premium sound system", "LED mood lighting", "Dance floor", "Privacy partition", "Bar area", "Climate control", "Entertainment system"],
+  },
+];
 
-  useEffect(() => {
-    async function fetchVehicles() {
-      const { data, error } = await supabase
-        .from("vehicles")
-        .select("id, name, slug, type, capacity, luggage_capacity, hourly_rate_local, image_url, features")
-        .eq("is_active", true)
-        .order("display_order");
+interface FleetShowcaseProps {
+  onVehicleSelect?: (vehicleId: string) => void;
+}
 
-      if (data) setVehicles(data);
-      setLoading(false);
-    }
-
-    fetchVehicles();
-  }, []);
-
-  if (loading) {
-    return (
-      <section id="fleet" className="py-24 px-6 md:px-12 lg:px-24">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center text-on-surface-variant">Loading fleet...</div>
-        </div>
-      </section>
-    );
-  }
-
+export default function FleetShowcase({ onVehicleSelect }: FleetShowcaseProps) {
   return (
     <section id="fleet" className="py-24 px-6 md:px-12 lg:px-24">
       <div className="max-w-7xl mx-auto">
@@ -65,7 +103,7 @@ export default function FleetShowcase() {
         </motion.div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {vehicles.map((vehicle, index) => (
+          {FLEET_DATA.map((vehicle, index) => (
             <motion.div
               key={vehicle.id}
               initial={{ opacity: 0, y: 30 }}
@@ -95,11 +133,14 @@ export default function FleetShowcase() {
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <p className="text-xs uppercase tracking-wider text-lime mb-1" style={{ fontFamily: "var(--font-mono)" }}>
-                      {vehicle.type === "stretch_limo" ? "Stretch Limo" : vehicle.type === "suv" ? "SUV" : "Sedan"}
+                      {vehicle.type === "stretch_limo" ? "Stretch Limo" : vehicle.type === "suv" ? "SUV" : vehicle.type === "party_bus" ? "Party Bus" : "Sedan"}
                     </p>
                     <h3 className="text-display text-xl text-primary" style={{ fontFamily: "var(--font-display)" }}>
                       {vehicle.name}
                     </h3>
+                    {vehicle.min_hours > 1 && (
+                      <p className="text-xs text-lime mt-1">{vehicle.min_hours}-hour minimum</p>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-on-surface-variant">Starting at</p>
@@ -126,7 +167,10 @@ export default function FleetShowcase() {
                   </div>
                 </div>
 
-                <button className="w-full btn-ghost py-3 text-sm uppercase tracking-wider">
+                <button 
+                  onClick={() => onVehicleSelect?.(vehicle.id)}
+                  className="w-full btn-lime py-3 text-sm uppercase tracking-wider"
+                >
                   Select Vehicle
                 </button>
               </div>

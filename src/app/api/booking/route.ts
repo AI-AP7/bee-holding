@@ -48,29 +48,117 @@ export async function POST(request: NextRequest) {
     const vehicleResult = await supabase
       .from("vehicles")
       .select("*")
-      .eq("slug", vehicleSlug || "")
       .eq("id", vehicleId)
       .eq("is_active", true)
       .single();
 
     const vehicle = vehicleResult.data;
 
-    const squareBookingId = `pending_${Date.now()}`;
+    // 1. Handle Square Customer (Find or Create)
+    const SQUARE_ENV = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT || "sandbox";
+    const SQUARE_ACCESS_TOKEN = process.env.SQUARE_ACCESS_TOKEN || "";
+    const SQUARE_LOCATION_ID = process.env.SQUARE_LOCATION_ID || "";
+    const SQUARE_API_BASE = SQUARE_ENV === "production"
+      ? "https://connect.squareup.com/v2"
+      : "https://connect.squareupsandbox.com/v2";
+
+    let squareCustomerId = "";
+    
+    // Check if customer exists in Square
+    const customerSearchResponse = await fetch(`${SQUARE_API_BASE}/customers/search`, {
+      method: "POST",
+      headers: {
+        "Square-Version": "2024-01-18",
+        "Authorization": `Bearer ${SQUARE_ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query: {
+          filter: {
+            email_address: { exact: customerEmail }
+          }
+        }
+      })
+    });
+
+    const searchData = await customerSearchResponse.json();
+    if (searchData.customers && searchData.customers.length > 0) {
+      squareCustomerId = searchData.customers[0].id;
+    } else {
+      // Create new customer
+      const createCustomerResponse = await fetch(`${SQUARE_API_BASE}/customers`, {
+        method: "POST",
+        headers: {
+          "Square-Version": "2024-01-18",
+          "Authorization": `Bearer ${SQUARE_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          given_name: customerName,
+          email_address: customerEmail,
+          phone_number: customerPhone,
+        })
+      });
+      const createData = await createCustomerResponse.json();
+      if (createData.customer) {
+        squareCustomerId = createData.customer.id;
+      }
+    }
+
+    // 2. Create Square Booking
+    // This requires a Service Variation ID. For now, we use a placeholder or check vehicle data
+    // In a real scenario, this would be stored in the vehicles table
+    const serviceVariationId = vehicle?.square_service_variation_id || "placeholder-variation-id";
+    
+    // Formatting startAt for Square (ISO format)
+    const startAt = `${date}T${time}:00Z`; // Simple ISO format, assuming UTC/Local adjustment is handled
+    
+    const squareBookingRequest = {
+      booking: {
+        customer_id: squareCustomerId,
+        location_id: SQUARE_LOCATION_ID,
+        start_at: startAt,
+        appointment_segments: [
+          {
+            service_variation_id: serviceVariationId,
+            team_member_id: "PUBLIC",
+            duration_minutes: serviceType === "hourly" ? 240 : 60,
+          }
+        ],
+        customer_note: `Limo Booking: ${vehicle?.name || "Premium Vehicle"}. Area: ${serviceArea}. Notes: ${specialRequests || "None"}`
+      }
+    };
+
+    const bookingResponse = await fetch(`${SQUARE_API_BASE}/bookings`, {
+      method: "POST",
+      headers: {
+        "Square-Version": "2024-01-18",
+        "Authorization": `Bearer ${SQUARE_ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(squareBookingRequest)
+    });
+
+    const bookingData = await bookingResponse.json();
+    const squareBookingId = bookingData.booking?.id || `pending_${Date.now()}`;
+
+    // 3. Save to Supabase
     const bookingRef = {
       vehicle_id: vehicle?.id || vehicleId,
       square_booking_id: squareBookingId,
+      square_customer_id: squareCustomerId,
       customer_name: customerName,
       customer_email: customerEmail,
       booking_date: date,
       start_time: time,
-      end_time: serviceType === "hourly" ? `${parseInt(time.split(":")[0]) + 4}:00` : time,
+      end_time: serviceType === "hourly" ? `${(parseInt(time.split(":")[0]) + 4) % 24}:00` : time,
       service_type: serviceType,
       service_area: serviceArea,
       pickup_location: pickupLocation || null,
       dropoff_location: dropoffLocation || null,
       total_hours: serviceType === "hourly" ? 4 : 1,
       total_price: vehicle?.four_hour_block_local || 510,
-      status: "pending",
+      status: bookingData.booking ? "confirmed" : "pending",
       notes: specialRequests || null,
     };
 
@@ -90,7 +178,7 @@ export async function POST(request: NextRequest) {
       block_type: "booking",
       square_booking_id: squareBookingId,
       start_time: time,
-      end_time: serviceType === "hourly" ? `${parseInt(time.split(":")[0]) + 4}:00` : time,
+      end_time: serviceType === "hourly" ? `${(parseInt(time.split(":")[0]) + 4) % 24}:00` : time,
       buffer_minutes: 60,
     };
 
@@ -108,7 +196,10 @@ export async function POST(request: NextRequest) {
         id: squareBookingId,
         ...bookingRef,
       },
-      message: "Booking request received. We'll contact you shortly to confirm.",
+      squareBooking: bookingData.booking,
+      message: bookingData.booking 
+        ? "Booking confirmed and scheduled in Square." 
+        : "Booking received but Square scheduling failed: " + (bookingData.errors?.[0]?.detail || "Unknown error"),
     });
   } catch (error) {
     console.error("Booking API error:", error);

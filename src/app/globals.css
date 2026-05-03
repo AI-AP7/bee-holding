@@ -14,9 +14,11 @@
   --color-on-surface-variant: #acabaa;
   --color-outline: #484848;
   
-  --color-tertiary: #9cff93;
+  --color-tertiary: #bddb37;
   --color-lime: #bddb37;
-  --color-lime-dark: #a3c030;
+  --color-lime-dark: #bddb37;
+  --color-gold: #D4AF37;
+  --color-gold-dark: #B8860B;
   
   --color-white: #ffffff;
   --color-black: #000000;
@@ -140,6 +142,22 @@ body {
   box-shadow: 0 0 20px rgba(189, 219, 55, 0.3);
 }
 
+.btn-gold {
+  background-color: var(--color-gold);
+  color: var(--color-black);
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 200ms ease-out;
+}
+
+.btn-gold:hover {
+  background-color: var(--color-gold-dark);
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+}
+
 .text-display {
   font-family: var(--font-display);
   font-weight: 800;
@@ -199,3 +217,149 @@ body {
 .stagger-3 { animation-delay: 0.3s; }
 .stagger-4 { animation-delay: 0.4s; }
 .stagger-5 { animation-delay: 0.5s; }
+
+/* ============================================================
+   K&J SOUND — KINETIC STAGE DESIGN SYSTEM
+   ============================================================ */
+.kj-theme {
+  --kj-surface:        #0b1326;
+  --kj-surface-bright: #31394d;
+  --kj-on-surface:     #dae2fd;
+  --kj-primary:        #d0bcff;
+  --kj-primary-dark:   #3c0091;
+  --kj-secondary:      #ffe083;
+  --kj-tertiary:       #ffb0cd;
+  --kj-error:          #ffb4ab;
+  --kj-outline:        #958ea0;
+  --kj-outline-dim:    rgba(149, 142, 160, 0.25);
+
+  --kj-glow-primary:   0 0 32px rgba(208, 188, 255, 0.35);
+  --kj-glow-secondary: 0 0 32px rgba(255, 224, 131, 0.4);
+  --kj-glow-sm:        0 0 16px rgba(208, 188, 255, 0.2);
+  --kj-glass:          rgba(49, 57, 77, 0.45);
+  --kj-glass-border:   rgba(208, 188, 255, 0.15);
+}
+
+/* Kinetic Stage utility classes */
+.kj-glass-card {
+  background: rgba(49, 57, 77, 0.45);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(208, 188, 255, 0.15);
+  border-radius: 0.5rem;
+  transition: border-color 250ms ease, box-shadow 250ms ease;
+}
+.kj-glass-card:hover {
+  border-color: rgba(208, 188, 255, 0.5);
+  box-shadow: var(--kj-glow-sm);
+}
+
+.kj-btn-primary {
+  background-color: #d0bcff;
+  color: #3c0091;
+  padding: 0.875rem 2rem;
+  border-radius: 0.25rem;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 0.875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: all 250ms ease;
+  cursor: pointer;
+  border: none;
+}
+.kj-btn-primary:hover {
+  box-shadow: var(--kj-glow-primary);
+  transform: translateY(-1px);
+}
+
+.kj-btn-secondary {
+  background: transparent;
+  color: #ffe083;
+  padding: 0.875rem 2rem;
+  border-radius: 0.25rem;
+  border: 1px solid #ffe083;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 0.875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: all 250ms ease;
+  cursor: pointer;
+}
+.kj-btn-secondary:hover {
+  background-color: #ffe083;
+  color: #0b1326;
+  box-shadow: var(--kj-glow-secondary);
+  transform: translateY(-1px);
+}
+
+.kj-btn-ghost {
+  background: transparent;
+  color: #d0bcff;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.25rem;
+  border: 1px solid rgba(208, 188, 255, 0.4);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: all 250ms ease;
+  cursor: pointer;
+}
+.kj-btn-ghost:hover {
+  border-color: #d0bcff;
+  background: rgba(208, 188, 255, 0.08);
+}
+
+.kj-label {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #ffe083;
+}
+
+.kj-input {
+  width: 100%;
+  background: rgba(11, 19, 38, 0.8);
+  border: 1px solid rgba(149, 142, 160, 0.3);
+  border-bottom: 2px solid rgba(149, 142, 160, 0.3);
+  border-radius: 0.25rem 0.25rem 0 0;
+  padding: 0.875rem 1rem;
+  color: #dae2fd;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 1rem;
+  transition: border-color 200ms ease;
+  outline: none;
+}
+.kj-input:focus {
+  border-bottom-color: #ffe083;
+}
+.kj-input::placeholder { color: rgba(218, 226, 253, 0.35); }
+
+.kj-select {
+  width: 100%;
+  background: rgba(11, 19, 38, 0.8);
+  border: 1px solid rgba(149, 142, 160, 0.3);
+  border-bottom: 2px solid rgba(149, 142, 160, 0.3);
+  border-radius: 0.25rem 0.25rem 0 0;
+  padding: 0.875rem 1rem;
+  color: #dae2fd;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 1rem;
+  transition: border-color 200ms ease;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+}
+.kj-select:focus { border-bottom-color: #ffe083; }
+.kj-select option { background: #1a2035; }
+
+@keyframes kj-pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(208, 188, 255, 0.2); }
+  50%       { box-shadow: 0 0 40px rgba(208, 188, 255, 0.5); }
+}
+.kj-pulse { animation: kj-pulse-glow 3s ease-in-out infinite; }

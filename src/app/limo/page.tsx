@@ -1,55 +1,61 @@
-import { FleetShowcase, ReviewsSection, BookingSection } from "@/components/limo";
-import Link from "next/link";
-import { Metadata } from "next";
-import { localBusinessSchema, serviceSchema, faqSchema } from "@/lib/schemas";
+"use client";
 
-export const metadata: Metadata = {
-  title: "UFirst Limos | Premium Limousine Service MD, DC, VA, PA",
-  description:
-    "Book premium limousine service in Maryland, DC, Virginia & Pennsylvania. Black stretch limos, Escalades & Mercedes S-Class. Hourly or point-to-point. 5-star rated.",
-  alternates: {
-    canonical: "https://blkexcellenceenterprise.com/limo",
-  },
-  openGraph: {
-    title: "UFirst Limos | Premium Transportation",
-    description: "Maryland, DC, Virginia, Pennsylvania's premier limousine service",
-    url: "https://blkexcellenceenterprise.com/limo",
-    siteName: "UFirst Limos",
-    type: "website",
-  },
-};
+import FleetShowcase from "@/components/limo/FleetShowcase";
+import ReviewsSection from "@/components/limo/ReviewsSection";
+import SeoScripts from "@/components/limo/SeoScripts";
+import Link from "next/link";
+import Image from "next/image";
+import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
+
+const BookingModal = dynamic(() => import("@/components/limo/BookingModal"));
+
 
 export default function LimoPage() {
+  const [activeSection, setActiveSection] = useState("experience");
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+
+  const sections = [
+    { id: "experience", label: "Experience" },
+    { id: "fleet", label: "Fleet" },
+    { id: "reviews", label: "Reviews" },
+  ];
+
+  const handleVehicleSelect = (vehicleId: string) => {
+    setSelectedVehicleId(vehicleId);
+    setShowBookingModal(true);
+  };
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY + 100;
+      for (const section of sections) {
+        const element = document.getElementById(section.id);
+        if (element) {
+          const { offsetTop, offsetHeight } = element;
+          if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
+            setActiveSection(section.id);
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
     <>
-      <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(localBusinessSchema),
-          }}
-        />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(serviceSchema),
-          }}
-        />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(faqSchema),
-          }}
-        />
-      </head>
+      <SeoScripts />
       <main className="min-h-screen bg-background">
         {/* Hero Section */}
-        <section className="relative min-h-[80vh] flex items-center">
+        <section className="relative min-h-[65vh] flex flex-col">
           {/* Background Image */}
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{
-              backgroundImage: "url('https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=1920&q=80')",
+              backgroundImage: "url('/s-class.webp')",
             }}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-background via-background/90 to-background/60" />
@@ -64,118 +70,70 @@ export default function LimoPage() {
             backgroundSize: "40px 40px",
           }} />
 
-          <div className="relative w-full max-w-7xl mx-auto px-6 md:px-12 lg:px-24 py-32">
+          {/* Top Navigation / Brand Bar */}
+          <div className="relative w-full max-w-7xl mx-auto px-6 md:px-12 pt-8 z-10 flex flex-col md:flex-row items-center justify-between gap-4">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+              <span className="text-xs uppercase tracking-widest" style={{ fontFamily: "var(--font-mono)" }}>
+                BLACK EXCELLENCE ENTERPRISES
+              </span>
+            </Link>
+
             {/* Tier Tag */}
-            <div className="inline-flex items-center gap-3 px-4 py-2 border border-lime rounded-full mb-8">
+            <div className="inline-flex items-center gap-3 px-3 py-1 border border-lime/50 rounded-full">
               <span className="w-2 h-2 rounded-full bg-lime animate-pulse" />
-              <span className="text-xs uppercase tracking-widest text-lime" style={{ fontFamily: "var(--font-mono)" }}>
+              <span className="text-[10px] uppercase tracking-[0.2em] text-lime" style={{ fontFamily: "var(--font-mono)" }}>
                 Premier Tier Service
               </span>
             </div>
+          </div>
 
-            {/* Main Content */}
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <div>
-                {/* Parent Company Link */}
-                <Link
-                  href="/"
-                  className="inline-flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors mb-6"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M19 12H5M12 19l-7-7 7-7" />
-                  </svg>
-                  <span className="text-sm" style={{ fontFamily: "var(--font-mono)" }}>
-                    BLACK EXCELLENCE ENTERPRISES
-                  </span>
-                </Link>
+          <div className="relative flex-1 flex items-center justify-center pb-20 pt-4">
+            <div className="w-full max-w-7xl mx-auto px-6 md:px-12">
+              {/* Main Content */}
+              <div className="flex flex-col items-center justify-center text-center">
+                <div className="relative w-40 h-40 mb-0">
+                  <Image
+                    src="/ufirst-logo.png"
+                    alt="UFirst Limos Logo"
+                    fill
+                    className="object-contain"
+                    sizes="160px"
+                  />
+                </div>
 
-                <h1
-                  className="text-display leading-none mb-6"
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: "clamp(3rem, 8vw, 6rem)",
-                    fontWeight: 800,
-                  }}
-                >
-                  <span className="text-primary">UFIRST</span>
-                  <br />
-                  <span className="text-lime">LIMOS</span>
-                </h1>
-
-                <p className="text-lg text-on-surface-variant max-w-lg mb-8">
-                  Private, clinical, and absolute transit protocols engaged. 
-                  Experience luxury transportation across Maryland, DC, Virginia, and Pennsylvania.
+                <p className="text-lg text-on-surface-variant max-w-lg text-justify mb-6">
+                  Courtesy Epitomized, Opulence Personified. Whether its our safety certified, luxury fleet, or our top rated chauffeurs, rest assured the with us, you come first.
                 </p>
 
-                <div className="flex flex-wrap items-center gap-4">
-                  <a href="#booking" className="btn-lime px-8 py-4">
-                    Reserve Now
-                  </a>
-                  <a href="#fleet" className="btn-ghost px-8 py-4">
-                    View Fleet
-                  </a>
-                </div>
-              </div>
-
-              {/* Stats Sidebar */}
-              <div className="hidden lg:block">
-                <div className="bg-surface-high/80 backdrop-blur-sm rounded-2xl p-8 ghost-border">
-                  <div className="flex items-center gap-3 mb-8 pb-4 border-b border-outline/30">
-                    <span className="w-3 h-3 rounded-full bg-lime animate-pulse" />
-                    <span className="text-xs uppercase tracking-widest text-lime" style={{ fontFamily: "var(--font-mono)" }}>
-                      Live Fleet Status
-                    </span>
-                  </div>
-
-                  <div className="space-y-8">
-                    <div>
-                      <p className="text-xs uppercase tracking-wider text-on-surface-variant mb-2" style={{ fontFamily: "var(--font-mono)" }}>
-                        Operational Hub
-                      </p>
-                      <p className="text-lg font-bold text-primary" style={{ fontFamily: "var(--font-mono)" }}>
-                        BEE-HQ-01
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs uppercase tracking-wider text-on-surface-variant mb-2" style={{ fontFamily: "var(--font-mono)" }}>
-                        Units Available
-                      </p>
-                      <p className="text-3xl font-bold text-lime" style={{ fontFamily: "var(--font-mono)" }}>
-                        05 / 05
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs uppercase tracking-wider text-on-surface-variant mb-2" style={{ fontFamily: "var(--font-mono)" }}>
-                        Response Time
-                      </p>
-                      <p className="text-3xl font-bold text-primary" style={{ fontFamily: "var(--font-mono)" }}>
-                        ~15 min
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <a href="#fleet" className="btn-lime px-12 py-4 text-xl">
+                  Reserve Now
+                </a>
               </div>
             </div>
           </div>
 
           {/* Bottom Navigation */}
-          <nav className="absolute bottom-0 left-0 right-0 bg-black/80 backdrop-blur-md border-t border-outline/20">
+            <nav className="absolute bottom-0 left-0 right-0 bg-black/80 backdrop-blur-md border-t border-outline/20">
             <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-24">
               <div className="flex items-center justify-center gap-1 h-14">
-                {["Experience", "Fleet", "Reservation", "Reviews"].map((item, index) => (
+                {sections.map((section) => (
                   <a
-                    key={item}
-                    href={`#${item.toLowerCase()}`}
+                    key={section.id}
+                    href={`#${section.id}`}
                     className={`px-4 py-2 text-xs uppercase tracking-wider transition-colors ${
-                      index === 1
+                      activeSection === section.id
                         ? "bg-lime text-black font-bold"
                         : "text-white hover:text-lime"
                     }`}
                     style={{ fontFamily: "var(--font-mono)" }}
                   >
-                    {item}
+                    {section.label}
                   </a>
                 ))}
               </div>
@@ -192,13 +150,11 @@ export default function LimoPage() {
                   The Experience
                 </p>
                 <h2 className="text-display text-4xl md:text-5xl text-primary mb-6" style={{ fontFamily: "var(--font-display)" }}>
-                  PREMIUM SERVICE,<br />
-                  <span className="text-lime">EVERY MILE</span>
+                  TRAVEL WITH GRACE,<br />
+                  <span className="text-lime">ARRIVE IN STYLE</span>
                 </h2>
                 <p className="text-on-surface-variant leading-relaxed mb-8">
-                  From the moment you book to your final destination, UFirst Limos delivers an unparalleled 
-                  experience. Our fleet of premium vehicles and professional chauffeurs ensure you arrive 
-                  in style, comfort, and on time.
+                  Make all your big moments feel as special as they are. From prom to weddings, from corporate travel to airport transit, we put you first.
                 </p>
                 
                 <div className="grid grid-cols-2 gap-6">
@@ -223,22 +179,29 @@ export default function LimoPage() {
               <div className="relative">
                 <div className="aspect-square rounded-2xl overflow-hidden">
                   <img
-                    src="https://images.unsplash.com/photo-1563720223185-11003d516935?w=800&q=80"
+                    src="/cad_v.jpeg"
                     alt="Luxury limousine interior"
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <div className="absolute -bottom-6 -left-6 w-32 h-32 border-2 border-lime rounded-xl" />
+                <div className="absolute -bottom-6 -left-6 w-32 h-32 border-2 border-lime/50 rounded-xl" />
               </div>
             </div>
           </div>
         </section>
 
         {/* Fleet Section */}
-        <FleetShowcase />
+        <FleetShowcase onVehicleSelect={(vehicleId) => {
+          setSelectedVehicleId(vehicleId);
+          setShowBookingModal(true);
+        }} />
 
-        {/* Booking Section */}
-        <BookingSection />
+        {/* Booking Modal */}
+        <BookingModal
+          isOpen={showBookingModal}
+          onClose={() => setShowBookingModal(false)}
+          selectedVehicleId={selectedVehicleId}
+        />
 
         {/* Reviews Section */}
         <ReviewsSection />
@@ -261,10 +224,10 @@ export default function LimoPage() {
 
               <div className="flex items-center gap-6 text-sm text-on-surface-variant">
                 <a href="tel:+14105550123" className="hover:text-primary transition-colors" style={{ fontFamily: "var(--font-mono)" }}>
-                  +1 (410) 555-0123
+                  +1 (443) 680-0071
                 </a>
-                <a href="mailto:info@blkexcellenceenterprise.com" className="hover:text-primary transition-colors">
-                  info@blkexcellenceenterprise.com
+                <a href="mailto:ufirstlimo@gmail.com" className="hover:text-primary transition-colors">
+                  ufirstlimo@gmail.com
                 </a>
               </div>
             </div>

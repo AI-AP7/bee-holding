@@ -26,7 +26,7 @@ export const organizationSchema = {
   ],
   contactPoint: {
     "@type": "ContactPoint",
-    email: "info@blkexcellenceenterprise.com",
+    email: "ufirstlimo@gmail.com",
     contactType: "customer service",
   },
   address: {
@@ -50,8 +50,8 @@ export const localBusinessSchema = {
         "Premium limousine service in Maryland, DC, Virginia, and Pennsylvania. Luxury transportation for weddings, proms, corporate events, and airport transfers.",
       url: "https://blkexcellenceenterprise.com/limo",
       image: "https://blkexcellenceenterprise.com/images/fleet-hero.jpg",
-      telephone: "+1-410-555-0123",
-      email: "info@blkexcellenceenterprise.com",
+      telephone: "+1-443-680-0071",
+      email: "ufirstlimo@gmail.com",
       priceRange: "$$$",
       address: {
         "@type": "PostalAddress",

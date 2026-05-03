@@ -2,28 +2,43 @@
 
 import { motion } from "framer-motion";
 import { useState } from "react";
+import VideoCarousel from "./VideoCarousel";
 
 const reviews = [
   {
     id: "1",
-    name: "Michael T.",
+    name: "Verified Customer",
     rating: 5,
-    comment: "Absolutely exceptional service! The black stretch limo was immaculate and the driver was professional. Made our wedding day even more special.",
-    date: "March 2026",
+    comment: "My daughter was absolutely in love with the experience and now wants me to use your Company on all our future affairs. Sir, you are to be complimented for your exceptional customer service skills and for making her dreams come true.",
+    category: "Special Event",
   },
   {
     id: "2",
-    name: "Jennifer L.",
+    name: "Dylan",
     rating: 5,
-    comment: "Used the Escalade for airport pickup. The driver was waiting with a sign, helped with luggage, and the ride was incredibly smooth.",
-    date: "February 2026",
+    comment: "I had an excellent experience with UFirst limo service. Will get you exactly where you need to be in a pleasurable and fashionable manner.",
+    category: "Professional Service",
   },
   {
     id: "3",
-    name: "David R.",
+    name: "Jackson",
     rating: 5,
-    comment: "Booked the Mercedes for a business meeting. Top-notch service from start to finish. The car was perfect and the driver was punctual.",
-    date: "January 2026",
+    comment: "Great limo great price. The limo owner was super professional and played great music.",
+    category: "Luxury Transport",
+  },
+  {
+    id: "4",
+    name: "Kristen Brooks",
+    rating: 5,
+    comment: "It was a overall great experience, the limo was there on time and the driver was awesome and reasonably priced. Thank you again.",
+    category: "Limousine Hire",
+  },
+  {
+    id: "5",
+    name: "Abigail",
+    rating: 5,
+    comment: "Great experience! Safe drive there and back and it was very cool overall!",
+    category: "Safe & Cool Ride",
   },
 ];
 
@@ -82,17 +97,29 @@ export default function ReviewsSection() {
           </div>
         </motion.div>
 
-        {/* Reviews Grid */}
-        <div className="grid md:grid-cols-2 gap-6">
-          {displayedReviews.map((review, index) => (
-            <motion.div
-              key={review.id}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="bg-surface-high rounded-xl p-8 ghost-border"
-            >
+        {/* Reviews Content */}
+        <div className="grid md:grid-cols-2 gap-12 items-start">
+          {/* Video Carousel */}
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <VideoCarousel />
+          </motion.div>
+
+          {/* Reviews Grid */}
+          <div className="space-y-6">
+            {displayedReviews.map((review, index) => (
+              <motion.div
+                key={review.id}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                className="bg-surface-high rounded-xl p-8 ghost-border"
+              >
               {/* Rating */}
               <div className="flex items-center gap-1 mb-4">
                 {[1, 2, 3, 4, 5].map((star) => (
@@ -120,16 +147,16 @@ export default function ReviewsSection() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-semibold text-primary">{review.name}</p>
-                  <p className="text-sm text-on-surface-variant">{review.date}</p>
                 </div>
                 <div className="px-3 py-1 bg-surface-mid rounded-full">
                   <p className="text-xs uppercase tracking-wider text-lime" style={{ fontFamily: "var(--font-mono)" }}>
-                    Verified
+                    {review.category}
                   </p>
                 </div>
               </div>
             </motion.div>
           ))}
+          </div>
         </div>
 
         {/* Show More */}

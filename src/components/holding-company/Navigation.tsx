@@ -26,23 +26,23 @@ export default function Navigation() {
             style={{ fontFamily: "var(--font-display)" }}
           >
             BLACK EXCELLENCE<br />
-            <span className="text-xs text-on-surface-variant font-normal">ENTERPRISES</span>
+            <span className="text-xs text-on-surface-variant font-normal">ENTERPRISE</span>
           </span>
         </a>
 
         {/* Navigation Links */}
         <div className="flex items-center gap-1 md:gap-2">
           <button
-            onClick={() => openModal("companies")}
-            className="nav-bracket px-3 py-2 md:px-4 md:py-2 text-on-surface-variant hover:text-primary transition-colors rounded-md hover:bg-surface-high"
-          >
-            [COMPANIES]
-          </button>
-          <button
             onClick={() => openModal("about")}
             className="nav-bracket px-3 py-2 md:px-4 md:py-2 text-on-surface-variant hover:text-primary transition-colors rounded-md hover:bg-surface-high"
           >
             [ABOUT]
+          </button>
+          <button
+            onClick={() => openModal("companies")}
+            className="nav-bracket px-3 py-2 md:px-4 md:py-2 text-on-surface-variant hover:text-primary transition-colors rounded-md hover:bg-surface-high"
+          >
+            [COMPANIES]
           </button>
           <button
             onClick={() => openModal("contact")}
