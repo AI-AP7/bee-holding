@@ -32,6 +32,7 @@ const addOns = [
   { id: "snacks", name: "Snacks & Chips", price: 10, category: "food" },
   { id: "flowers", name: "Flowers", price: 25, category: "service" },
   { id: "balloons", name: "Balloons", price: 10, category: "service" },
+  { id: "condoms", name: "Condoms", price: 5, category: "service" },
 ];
 
 const steps: Array<{ id: Step; label: string }> = [
