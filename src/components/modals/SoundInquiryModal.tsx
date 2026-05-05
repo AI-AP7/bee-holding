@@ -141,18 +141,18 @@ Notes: ${formData.notes}`;
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 p-3 pt-6 pb-6 backdrop-blur-sm sm:items-center sm:p-4"
         onClick={onClose}
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-2xl bg-surface-high rounded-xl overflow-hidden ghost-border max-h-[90vh] overflow-y-auto"
+          className="relative flex max-h-[calc(100vh-3rem)] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-surface-high ghost-border"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="sticky top-0 z-10 bg-surface-high">
-            <div className="flex items-center justify-between p-6 border-b border-outline/30">
+            <div className="flex items-start justify-between gap-4 border-b border-outline/30 p-4 sm:p-6">
               <div>
                 <p className="text-lime text-xs uppercase tracking-widest" style={{ fontFamily: "var(--font-mono)" }}>
                   K & J Sound Company
@@ -168,10 +168,10 @@ Notes: ${formData.notes}`;
               </button>
             </div>
 
-            <div className="flex items-center justify-center gap-2 p-4 border-b border-outline/20">
+            <div className="flex flex-col gap-2 border-b border-outline/20 p-4 sm:flex-row sm:items-center sm:justify-center">
               <button
                 onClick={() => setInquiryType("event")}
-                className={`flex-1 px-4 py-3 rounded-lg transition-all ${
+                className={`flex-1 rounded-lg px-4 py-3 transition-all ${
                   inquiryType === "event"
                     ? "bg-lime text-black font-bold"
                     : "text-on-surface-variant hover:text-lime"
@@ -192,7 +192,7 @@ Notes: ${formData.notes}`;
             </div>
           </div>
 
-          <div className="p-6 space-y-4">
+          <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
             {submitStatus === "success" ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
                 <div className="w-20 h-20 bg-lime rounded-full flex items-center justify-center mx-auto mb-6">
@@ -205,7 +205,7 @@ Notes: ${formData.notes}`;
               </motion.div>
             ) : (
               <>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label className="block text-sm text-on-surface-variant mb-2">Name *</label>
                     <input
@@ -267,7 +267,7 @@ Notes: ${formData.notes}`;
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div>
                         <label className="block text-sm text-on-surface-variant mb-2">Estimated Attendance *</label>
                         <input
@@ -349,7 +349,7 @@ Notes: ${formData.notes}`;
                       </select>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div>
                         <label className="block text-sm text-on-surface-variant mb-2">Location *</label>
                         <input
@@ -395,11 +395,11 @@ Notes: ${formData.notes}`;
           </div>
 
           {submitStatus !== "success" && (
-            <div className="sticky bottom-0 bg-surface-high p-6 border-t border-outline/30">
-              <div className="flex items-center justify-between">
+            <div className="sticky bottom-0 border-t border-outline/30 bg-surface-high p-4 sm:p-6">
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <button
                   onClick={onClose}
-                  className="px-6 py-3 text-on-surface-variant hover:text-primary transition-colors"
+                  className="px-6 py-3 text-left text-on-surface-variant transition-colors hover:text-primary"
                 >
                   Cancel
                 </button>
@@ -412,7 +412,7 @@ Notes: ${formData.notes}`;
                     (inquiryType === "event" && (!formData.eventType || !formData.estimatedAttendance || !formData.eventDate || !formData.eventLocation)) ||
                     (inquiryType === "installation" && (!formData.installationType || !formData.installing || !formData.location))
                   }
-                  className="btn-lime px-8 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="btn-lime w-full px-8 py-3 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                 >
                   {isSubmitting ? "Sending..." : "Request Quote"}
                 </button>

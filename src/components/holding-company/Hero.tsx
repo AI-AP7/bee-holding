@@ -30,7 +30,7 @@ export default function Hero() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="text-on-surface-variant text-lg md:text-xl text-center mt-[-1rem]"
+          className="mt-[-0.5rem] text-center text-base text-on-surface-variant md:mt-[-1rem] md:text-xl"
             style={{ fontFamily: "var(--font-body)" }}
           >
             Commit to the Lord whatever you do, and he will establish your plans. — Proverbs 16:3
@@ -46,7 +46,7 @@ export default function Hero() {
         >
           <button
             onClick={() => openModal("companies")}
-            className="btn-gold px-12 py-5 text-lg"
+            className="btn-gold px-8 py-4 text-base sm:px-12 sm:py-5 sm:text-lg"
           >
             Explore Companies
           </button>
@@ -57,7 +57,7 @@ export default function Hero() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 1.2, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-16 grid grid-cols-3 gap-8"
+          className="mt-16 grid gap-6 sm:grid-cols-3 sm:gap-8"
         >
           {[
             { label: "Companies", value: "2" },

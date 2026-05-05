@@ -12,12 +12,12 @@ export default function ContactModal() {
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95, y: 20 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="relative w-full max-w-lg bg-surface-high rounded-xl overflow-hidden ghost-border p-8"
+      className="relative w-full max-w-lg overflow-y-auto rounded-xl bg-surface-high p-5 pr-14 ghost-border max-h-[calc(100vh-3rem)] sm:p-8 sm:pr-16"
     >
       {/* Close button */}
       <button
         onClick={closeModal}
-        className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors"
+        className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-surface-high/90 text-on-surface-variant transition-colors hover:text-primary sm:right-4 sm:top-4"
         aria-label="Close modal"
       >
         <svg
@@ -33,7 +33,7 @@ export default function ContactModal() {
       </button>
 
       <h2
-        className="text-display text-3xl text-primary mb-2"
+        className="text-display mb-2 text-3xl text-primary"
         style={{ fontFamily: "var(--font-display)" }}
       >
         CONTACT
@@ -46,10 +46,10 @@ export default function ContactModal() {
       <div className="space-y-4 mb-8">
         {/* Email */}
         <a
-          href="mailto:ufirstlimo@gmail.com"
-          className="flex items-center gap-4 p-4 bg-surface-mid rounded-lg hover:bg-surface-highest transition-colors group"
+          href="mailto:chairman@blkexcellenceenterprise.com"
+          className="group flex items-start gap-4 rounded-lg bg-surface-mid p-4 transition-colors hover:bg-surface-highest"
         >
-          <div className="w-12 h-12 flex items-center justify-center bg-surface-highest rounded-lg">
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-surface-highest">
             <svg
               width="24"
               height="24"
@@ -65,8 +65,8 @@ export default function ContactModal() {
           </div>
           <div>
             <p className="text-xs uppercase tracking-wider text-on-surface-variant mb-1">Email</p>
-            <p className="text-on-surface group-hover:text-primary transition-colors">
-              ufirstlimo@gmail.com
+            <p className="break-all text-on-surface transition-colors group-hover:text-primary">
+              chairman@blkexcellenceenterprise.com
             </p>
           </div>
         </a>
@@ -74,9 +74,9 @@ export default function ContactModal() {
         {/* Phone */}
         <a
           href="tel:+14105550123"
-          className="flex items-center gap-4 p-4 bg-surface-mid rounded-lg hover:bg-surface-highest transition-colors group"
+          className="group flex items-start gap-4 rounded-lg bg-surface-mid p-4 transition-colors hover:bg-surface-highest"
         >
-          <div className="w-12 h-12 flex items-center justify-center bg-surface-highest rounded-lg">
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-surface-highest">
             <svg
               width="24"
               height="24"
@@ -98,8 +98,8 @@ export default function ContactModal() {
         </a>
 
         {/* Service Areas */}
-        <div className="flex items-center gap-4 p-4 bg-surface-mid rounded-lg">
-          <div className="w-12 h-12 flex items-center justify-center bg-surface-highest rounded-lg">
+        <div className="flex items-start gap-4 rounded-lg bg-surface-mid p-4">
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-surface-highest">
             <svg
               width="24"
               height="24"

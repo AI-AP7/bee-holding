@@ -50,7 +50,7 @@ export default function ModalSystem() {
           />
 
           {/* Modal Container */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 pt-6 pb-6 sm:items-center sm:p-4 md:p-8">
             <AnimatePresence mode="wait">
               {activeModal === "about" && <AboutModal key="about" />}
               {activeModal === "companies" && <CompaniesModal key="companies" />}

@@ -26,30 +26,30 @@ export default function AboutModal() {
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95, y: 20 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="relative w-full max-w-4xl bg-surface-high rounded-xl overflow-hidden ghost-border"
+      className="relative w-full max-w-4xl overflow-hidden rounded-xl bg-surface-high ghost-border max-h-[calc(100vh-3rem)] overflow-y-auto"
     >
       <div className="grid md:grid-cols-2">
         {/* Left: Image */}
-        <div className="relative h-64 md:h-auto bg-surface-mid">
+        <div className="relative h-64 bg-surface-mid sm:h-80 md:h-auto md:min-h-full">
           <Image
             src={aboutContent.imageUrl}
             alt="Black Excellence Enterprises leadership"
             fill
-            className="object-cover"
+            className="object-contain object-top p-4 md:object-cover md:p-0"
             sizes="(min-width: 768px) 50vw, 100vw"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-surface-high via-transparent to-transparent md:bg-gradient-to-r" />
-          <div className="absolute bottom-6 left-6 px-4 py-2 bg-gold text-black font-bold text-sm uppercase tracking-wider" style={{ fontFamily: "var(--font-mono)" }}>
+          <div className="absolute bottom-4 left-4 px-3 py-2 bg-gold text-xs font-bold uppercase tracking-wider text-black sm:bottom-6 sm:left-6 sm:px-4 sm:text-sm" style={{ fontFamily: "var(--font-mono)" }}>
             {aboutContent.title}
           </div>
         </div>
 
         {/* Right: Content */}
-        <div className="p-8 md:p-12 flex flex-col justify-center">
+        <div className="flex flex-col justify-center p-5 pr-14 sm:p-8 sm:pr-16 md:p-12">
           {/* Close button */}
           <button
             onClick={closeModal}
-            className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors"
+            className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-surface-high/90 text-on-surface-variant transition-colors hover:text-primary sm:right-4 sm:top-4"
             aria-label="Close modal"
           >
             <svg
@@ -65,14 +65,14 @@ export default function AboutModal() {
           </button>
 
           <h2
-            className="text-display text-4xl md:text-5xl text-primary mb-8"
+            className="text-display mb-6 text-3xl text-primary sm:text-4xl md:mb-8 md:text-5xl"
             style={{ fontFamily: "var(--font-display)" }}
           >
             ABOUT
           </h2>
 
           {/* Facts */}
-          <ul className="space-y-4 mb-8">
+          <ul className="mb-6 space-y-3 md:mb-8 md:space-y-4">
             {aboutContent.facts.map((fact, index) => (
               <motion.li
                 key={index}
@@ -92,7 +92,7 @@ export default function AboutModal() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
-            className="text-on-surface-variant text-sm leading-relaxed mb-8"
+            className="mb-6 text-sm leading-relaxed text-on-surface-variant md:mb-8"
           >
             {aboutContent.description}
           </motion.p>

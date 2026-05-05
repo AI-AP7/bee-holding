@@ -27,7 +27,7 @@ export default function KJNavigation({ onEventClick, onInstallClick }: KJNavigat
         borderBottom: scrolled ? "1px solid rgba(208, 188, 255, 0.2)" : "1px solid transparent",
       }}
     >
-      <div className="max-w-7xl mx-auto px-6 md:px-12 flex items-center justify-between h-16">
+      <div className="mx-auto flex h-auto max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 md:h-16 md:flex-nowrap md:px-12">
         {/* Home Link */}
         <Link href="/" className="flex items-center gap-3 group">
           <div className="w-8 h-8 bg-gold rounded-md flex items-center justify-center">
@@ -36,7 +36,7 @@ export default function KJNavigation({ onEventClick, onInstallClick }: KJNavigat
             </span>
           </div>
           <span
-            className="text-gold text-xs hidden md:block"
+            className="hidden text-xs text-gold sm:block"
             style={{ fontFamily: "var(--font-display)" }}
           >
             BLACK EXCELLENCE<br />
@@ -62,17 +62,17 @@ export default function KJNavigation({ onEventClick, onInstallClick }: KJNavigat
         </div>
 
         {/* CTA Buttons */}
-        <div className="flex items-center gap-3">
+        <div className="flex w-full items-center gap-2 sm:w-auto sm:gap-3">
           <button
             onClick={onEventClick}
-            className="kj-btn-ghost"
-            style={{ padding: "0.5rem 1.1rem", fontSize: "0.75rem" }}
+            className="kj-btn-ghost flex-1 sm:flex-none"
+            style={{ padding: "0.5rem 0.9rem", fontSize: "0.75rem" }}
           >
             Book Event
           </button>
           <button
             onClick={onInstallClick}
-            className="px-[1.1rem] py-[0.5rem] rounded border border-[rgba(208,188,255,0.3)] bg-[rgba(208,188,255,0.1)] text-[#d0bcff] font-space font-semibold text-[0.75rem] tracking-[0.06em] uppercase cursor-pointer transition-all duration-250 hover:bg-[rgba(208,188,255,0.18)] hover:border-[rgba(208,188,255,0.6)]"
+            className="flex-1 rounded border border-[rgba(208,188,255,0.3)] bg-[rgba(208,188,255,0.1)] px-[0.9rem] py-[0.5rem] text-[0.75rem] font-space font-semibold uppercase tracking-[0.06em] text-[#d0bcff] transition-all duration-250 hover:border-[rgba(208,188,255,0.6)] hover:bg-[rgba(208,188,255,0.18)] sm:flex-none sm:px-[1.1rem]"
           >
             Get a Quote
           </button>

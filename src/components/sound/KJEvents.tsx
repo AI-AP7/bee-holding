@@ -68,7 +68,7 @@ export default function KJEvents({ onEventClick }: KJEventsProps) {
             </p>
 
             {/* Event Type Grid */}
-            <div className="grid grid-cols-2 gap-3 mb-8">
+            <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {eventTypes.map((e, i) => (
                 <motion.div
                   key={e.label}

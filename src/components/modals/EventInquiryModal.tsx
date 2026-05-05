@@ -106,7 +106,7 @@ Notes: ${formData.notes}`;
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 pt-6 pb-6 sm:items-center sm:p-4"
         style={{ backgroundColor: "rgba(11, 19, 38, 0.85)", backdropFilter: "blur(8px)" }}
         onClick={onClose}
       >
@@ -115,7 +115,7 @@ Notes: ${formData.notes}`;
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 24 }}
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full max-w-2xl rounded-lg overflow-hidden max-h-[90vh] flex flex-col"
+          className="relative flex max-h-[calc(100vh-3rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg"
           style={{
             background: "rgba(17, 25, 46, 0.95)",
             border: "1px solid rgba(208, 188, 255, 0.2)",
@@ -125,7 +125,7 @@ Notes: ${formData.notes}`;
         >
           {/* Header */}
           <div
-            className="flex items-center justify-between px-7 py-5 flex-shrink-0"
+            className="flex flex-shrink-0 items-start justify-between gap-4 px-4 py-4 sm:px-7 sm:py-5"
             style={{ borderBottom: "1px solid rgba(208, 188, 255, 0.15)" }}
           >
             <div>
@@ -156,7 +156,7 @@ Notes: ${formData.notes}`;
           </div>
 
           {/* Body */}
-          <div className="overflow-y-auto flex-1 px-7 py-6 space-y-5">
+          <div className="flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-7 sm:py-6">
             {submitStatus === "success" ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16">
                 <div
@@ -175,7 +175,7 @@ Notes: ${formData.notes}`;
             ) : (
               <>
                 {/* Contact Info */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label className="kj-label block mb-2">Name *</label>
                     <input className="kj-input" type="text" value={formData.name} onChange={(e) => handleChange("name", e.target.value)} placeholder="Your name" />
@@ -213,7 +213,7 @@ Notes: ${formData.notes}`;
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label className="kj-label block mb-2">Estimated Attendance *</label>
                     <input className="kj-input" type="text" value={formData.estimatedAttendance} onChange={(e) => handleChange("estimatedAttendance", e.target.value)} placeholder="e.g. 150 guests" />
@@ -286,10 +286,10 @@ Notes: ${formData.notes}`;
           {/* Footer */}
           {submitStatus !== "success" && (
             <div
-              className="flex items-center justify-between px-7 py-5 flex-shrink-0"
+              className="flex flex-shrink-0 flex-col-reverse gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7 sm:py-5"
               style={{ borderTop: "1px solid rgba(208, 188, 255, 0.15)" }}
             >
-              <button onClick={onClose} style={{ color: "#958ea0", fontFamily: "'Space Grotesk', system-ui, sans-serif", fontSize: "0.875rem", cursor: "pointer", background: "none", border: "none" }}
+              <button onClick={onClose} className="w-full text-left sm:w-auto" style={{ color: "#958ea0", fontFamily: "'Space Grotesk', system-ui, sans-serif", fontSize: "0.875rem", cursor: "pointer", background: "none", border: "none" }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = "#dae2fd")}
                 onMouseLeave={(e) => (e.currentTarget.style.color = "#958ea0")}
               >
@@ -298,7 +298,7 @@ Notes: ${formData.notes}`;
               <button
                 onClick={handleSubmit}
                 disabled={!isValid || isSubmitting}
-                className="kj-btn-secondary"
+                className="kj-btn-secondary w-full sm:w-auto"
                 style={{ opacity: !isValid || isSubmitting ? 0.4 : 1, cursor: !isValid || isSubmitting ? "not-allowed" : "pointer" }}
               >
                 {isSubmitting ? "Sending..." : "Send Inquiry"}

@@ -166,7 +166,7 @@ export default function LimoPageClient({ vehicles }: LimoPageClientProps) {
                   Make every major moment feel as special as it should. From prom to weddings, from corporate travel to airport transit, the service is built around you.
                 </p>
 
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
                   {[
                     { label: "Service Areas", value: "4 States" },
                     { label: "Fleet Vehicles", value: `${vehicles.length}+` },
@@ -234,7 +234,7 @@ export default function LimoPageClient({ vehicles }: LimoPageClientProps) {
                 </div>
               </div>
 
-              <div className="flex items-center gap-6 text-sm text-on-surface-variant">
+              <div className="flex flex-col items-center gap-3 text-sm text-on-surface-variant sm:flex-row sm:gap-6">
                 <a
                   href="tel:+14436800071"
                   className="transition-colors hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
