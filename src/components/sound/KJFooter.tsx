@@ -80,10 +80,10 @@ export default function KJFooter() {
               Maryland &amp; East Coast Region
               <br />
               <a
-                href="mailto:info@kjsoundcompany.com"
+                href="mailto:chairman@blkexcellenceenterprise.com"
                 style={{ color: "#ffe083", textDecoration: "none" }}
               >
-                info@kjsoundcompany.com
+                chairman@blkexcellenceenterprise.com
               </a>
             </p>
           </div>

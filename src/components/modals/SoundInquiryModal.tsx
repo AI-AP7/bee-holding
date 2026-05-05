@@ -102,7 +102,7 @@ Location: ${formData.location}
 Capacity: ${formData.capacity}
 Notes: ${formData.notes}`;
 
-      window.location.href = `mailto:ufirstlimo@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.location.href = `mailto:chairman@blkexcellenceenterprise.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
       
       setSubmitStatus("success");
       setTimeout(() => {

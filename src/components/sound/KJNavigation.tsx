@@ -30,13 +30,13 @@ export default function KJNavigation({ onEventClick, onInstallClick }: KJNavigat
       <div className="max-w-7xl mx-auto px-6 md:px-12 flex items-center justify-between h-16">
         {/* Home Link */}
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-8 h-8 bg-lime rounded-md flex items-center justify-center">
+          <div className="w-8 h-8 bg-gold rounded-md flex items-center justify-center">
             <span className="text-black font-bold text-sm" style={{ fontFamily: "var(--font-display)" }}>
               B
             </span>
           </div>
           <span
-            className="text-lime text-xs hidden md:block"
+            className="text-gold text-xs hidden md:block"
             style={{ fontFamily: "var(--font-display)" }}
           >
             BLACK EXCELLENCE<br />

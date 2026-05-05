@@ -75,7 +75,7 @@ Event Location: ${formData.eventLocation}
 Add-ons: ${formData.addons.join(", ") || "None"}
 Notes: ${formData.notes}`;
 
-      window.location.href = `mailto:info@kjsoundcompany.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.location.href = `mailto:chairman@blkexcellenceenterprise.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
       setSubmitStatus("success");
       setTimeout(() => {
         onClose();
