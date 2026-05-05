@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { FleetVehicle } from "@/lib/limo";
 import {
   SERVICE_AREAS,
@@ -60,6 +60,7 @@ export default function BookingModal({
   const descriptionId = useId();
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const firstFieldRef = useRef<HTMLInputElement | null>(null);
+  const createBookingRequestRef = useRef<Promise<void> | null>(null);
 
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(selectedVehicleId);
@@ -83,6 +84,7 @@ export default function BookingModal({
   const [paymentError, setPaymentError] = useState("");
   const [createdBookingId, setCreatedBookingId] = useState<string | null>(null);
   const [squareCustomerId, setSquareCustomerId] = useState<string | null>(null);
+  const [paymentIdempotencyKey, setPaymentIdempotencyKey] = useState<string | null>(null);
 
   const selectedVehicleData = useMemo(
     () => vehicles.find((vehicle) => vehicle.id === selectedVehicle) ?? null,
@@ -102,7 +104,11 @@ export default function BookingModal({
       return;
     }
 
-    setSelectedVehicle(selectedVehicleId);
+    const timer = window.setTimeout(() => {
+      setSelectedVehicle(selectedVehicleId);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [isOpen, selectedVehicleId]);
 
   useEffect(() => {
@@ -111,7 +117,11 @@ export default function BookingModal({
     }
 
     const minHours = selectedVehicleData?.min_hours ?? 4;
-    setSelectedHours((current) => Math.max(current, minHours));
+    const timer = window.setTimeout(() => {
+      setSelectedHours((current) => Math.max(current, minHours));
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [isOpen, selectedVehicleData]);
 
   useEffect(() => {
@@ -198,7 +208,17 @@ export default function BookingModal({
     return [formData.specialRequests.trim(), addOnSummary].filter(Boolean).join("\n");
   };
 
-  const createBooking = async () => {
+  const createBooking = () => {
+    if (createdBookingId) {
+      setBookingStatus("ready_for_payment");
+      setCurrentStep(5);
+      return;
+    }
+
+    if (createBookingRequestRef.current) {
+      return;
+    }
+
     if (!selectedVehicle || !selectedDate || !pickupLocation || !formData.customerName || !formData.customerEmail || !formData.customerPhone) {
       return;
     }
@@ -206,7 +226,7 @@ export default function BookingModal({
     setBookingStatus("creating_booking");
     setBookingError("");
 
-    try {
+    const request = (async () => {
       const response = await fetch("/api/booking", {
         method: "POST",
         headers: {
@@ -235,13 +255,20 @@ export default function BookingModal({
 
       setCreatedBookingId(data.booking.id);
       setSquareCustomerId(data.booking.square_customer_id);
+      setPaymentIdempotencyKey(crypto.randomUUID());
       setBookingStatus("ready_for_payment");
       setCurrentStep(5);
-    } catch (error) {
+    })();
+
+    createBookingRequestRef.current = request;
+
+    void request.catch((error) => {
       const message = error instanceof Error ? error.message : "Failed to create booking.";
       setBookingStatus("error");
       setBookingError(message);
-    }
+    }).finally(() => {
+      createBookingRequestRef.current = null;
+    });
   };
 
   const resetAndClose = () => {
@@ -266,8 +293,32 @@ export default function BookingModal({
     setPaymentError("");
     setCreatedBookingId(null);
     setSquareCustomerId(null);
+    setPaymentIdempotencyKey(null);
     onClose();
   };
+
+  const handleStepNavigation = (step: Step) => {
+    if (bookingStatus === "payment_complete") {
+      return;
+    }
+
+    if (step === 5 && !createdBookingId) {
+      setBookingError("Create the booking before continuing to payment.");
+      setCurrentStep(4);
+      return;
+    }
+
+    setCurrentStep(step);
+  };
+
+  const handlePaymentSuccess = useCallback(() => {
+    setPaymentError("");
+    setBookingStatus("payment_complete");
+  }, []);
+
+  const handlePaymentError = useCallback((error: string) => {
+    setPaymentError(error);
+  }, []);
 
   const canContinueFromStepOne =
     !!selectedVehicle &&
@@ -335,19 +386,15 @@ export default function BookingModal({
                 <button
                   key={step.id}
                   type="button"
-                  onClick={() => {
-                    if (bookingStatus === "payment_complete") {
-                      return;
-                    }
-                    setCurrentStep(step.id);
-                  }}
+                  onClick={() => handleStepNavigation(step.id)}
+                  disabled={step.id === 5 && !createdBookingId}
                   className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime ${
                     currentStep === step.id
                       ? "bg-lime font-bold text-black"
                       : step.id < currentStep
                         ? "bg-lime/20 text-lime"
                         : "text-on-surface-variant"
-                  }`}
+                  } disabled:cursor-not-allowed disabled:opacity-40`}
                   style={{ fontFamily: "var(--font-mono)" }}
                 >
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-current text-xs">
@@ -835,7 +882,7 @@ export default function BookingModal({
                   </motion.div>
                 )}
 
-                {currentStep === 5 && (
+                {currentStep === 5 && createdBookingId && paymentIdempotencyKey && (
                   <motion.div initial={prefersReducedMotion ? false : { opacity: 0, x: 20 }} animate={prefersReducedMotion ? undefined : { opacity: 1, x: 0 }} className="space-y-6">
                     <div className="rounded-xl bg-surface-mid p-6 text-center">
                       <p className="mb-2 text-on-surface-variant">Amount Due</p>
@@ -850,12 +897,10 @@ export default function BookingModal({
                     <SquarePaymentForm
                       amount={totals.total}
                       customerId={squareCustomerId ?? undefined}
-                      bookingId={createdBookingId ?? undefined}
-                      onSuccess={() => {
-                        setPaymentError("");
-                        setBookingStatus("payment_complete");
-                      }}
-                      onError={(error) => setPaymentError(error)}
+                      bookingId={createdBookingId}
+                      idempotencyKey={paymentIdempotencyKey}
+                      onSuccess={handlePaymentSuccess}
+                      onError={handlePaymentError}
                     />
 
                     {paymentError && (

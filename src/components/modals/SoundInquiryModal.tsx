@@ -200,8 +200,8 @@ Notes: ${formData.notes}`;
                     <path d="M20 6L9 17l-5-5" />
                   </svg>
                 </div>
-                <h3 className="text-2xl font-bold text-lime mb-2">Request Sent!</h3>
-                <p className="text-on-surface-variant">We&apos;ll be in touch shortly.</p>
+                <h3 className="text-2xl font-bold text-lime mb-2">Mail Client Opened</h3>
+                <p className="text-on-surface-variant">Please send the prepared email from your mail app to complete the inquiry.</p>
               </motion.div>
             ) : (
               <>
@@ -407,6 +407,7 @@ Notes: ${formData.notes}`;
                 <button
                   onClick={handleSubmit}
                   disabled={
+                    isSubmitting ||
                     !formData.name || !formData.email || !formData.phone ||
                     (inquiryType === "event" && (!formData.eventType || !formData.estimatedAttendance || !formData.eventDate || !formData.eventLocation)) ||
                     (inquiryType === "installation" && (!formData.installationType || !formData.installing || !formData.location))

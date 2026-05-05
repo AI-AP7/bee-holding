@@ -25,6 +25,12 @@ interface SquareWebhookEvent {
   };
 }
 
+interface SquarePayment {
+  id: string;
+  status?: string;
+  reference_id?: string;
+}
+
 interface SquareBooking {
   id: string;
   customer_id?: string;
@@ -39,16 +45,22 @@ interface SquareBooking {
 }
 
 function verifyWebhookSignature(signature: string, body: string, url: string) {
-  if (!squareWebhookKey) {
+  if (!squareWebhookKey || squareWebhookKey === "placeholder-key") {
     return false;
   }
 
-  const expectedSignature = crypto
-    .createHmac("sha256", squareWebhookKey)
-    .update(`${url}${body}`)
-    .digest("base64");
+  const expectedSignature = Buffer.from(
+    crypto
+      .createHmac("sha256", squareWebhookKey)
+      .update(`${url}${body}`)
+      .digest()
+  );
+  const receivedSignature = Buffer.from(signature, "base64");
 
-  return signature === expectedSignature;
+  return (
+    receivedSignature.length === expectedSignature.length &&
+    crypto.timingSafeEqual(receivedSignature, expectedSignature)
+  );
 }
 
 async function getSquareBooking(bookingId: string): Promise<SquareBooking | null> {
@@ -67,6 +79,28 @@ async function getSquareBooking(bookingId: string): Promise<SquareBooking | null
 
   const data = (await response.json()) as { booking?: SquareBooking };
   return data.booking || null;
+}
+
+async function getSquarePayment(paymentId: string): Promise<SquarePayment | null> {
+  const response = await fetch(`${squareApiBase}/payments/${paymentId}`, {
+    headers: {
+      "Square-Version": "2024-01-18",
+      Authorization: `Bearer ${squareAccessToken}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    console.error("Failed to fetch payment from Square:", await response.text());
+    return null;
+  }
+
+  const data = (await response.json()) as { payment?: SquarePayment };
+  return data.payment || null;
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 async function resolveVehicleId(serviceVariationId?: string | null) {
@@ -162,9 +196,73 @@ async function syncBooking(bookingId: string) {
   return NextResponse.json({ received: true });
 }
 
+async function syncPayment(paymentId: string) {
+  const payment = await getSquarePayment(paymentId);
+  if (!payment) {
+    return NextResponse.json({ error: "Payment not found." }, { status: 404 });
+  }
+
+  if (payment.status !== "COMPLETED" || !payment.reference_id) {
+    return NextResponse.json({ received: true });
+  }
+
+  let bookingQuery = supabase
+    .from("booking_references")
+    .select("id, vehicle_id, square_booking_id, booking_date, start_time, end_time, status, notes")
+    .eq("square_booking_id", payment.reference_id);
+
+  if (isUuid(payment.reference_id)) {
+    bookingQuery = supabase
+      .from("booking_references")
+      .select("id, vehicle_id, square_booking_id, booking_date, start_time, end_time, status, notes")
+      .eq("id", payment.reference_id);
+  }
+
+  const { data: booking, error: bookingLookupError } = await bookingQuery.maybeSingle();
+
+  if (bookingLookupError) {
+    console.error("Failed to find booking for completed payment:", bookingLookupError);
+    return NextResponse.json({ error: "Failed to find booking for completed payment." }, { status: 500 });
+  }
+
+  if (!booking || booking.status !== "pending_payment") {
+    return NextResponse.json({ received: true });
+  }
+
+  const { error: blockError } = await supabase.from("availability_blocks").insert({
+    vehicle_id: booking.vehicle_id,
+    block_date: booking.booking_date,
+    block_type: "booking",
+    square_booking_id: booking.square_booking_id,
+    start_time: booking.start_time,
+    end_time: booking.end_time,
+    buffer_minutes: 60,
+    notes: booking.notes || null,
+  });
+
+  if (blockError) {
+    console.error("Failed to reserve paid booking availability from webhook:", blockError);
+    return NextResponse.json({ error: "Failed to reserve paid booking availability." }, { status: 500 });
+  }
+
+  const { error: updateError } = await supabase
+    .from("booking_references")
+    .update({ status: "confirmed" })
+    .eq("id", booking.id)
+    .eq("status", "pending_payment");
+
+  if (updateError) {
+    await supabase.from("availability_blocks").delete().eq("square_booking_id", booking.square_booking_id);
+    console.error("Failed to confirm pending booking after payment:", updateError);
+    return NextResponse.json({ error: "Failed to confirm booking after payment." }, { status: 500 });
+  }
+
+  return NextResponse.json({ received: true });
+}
+
 export async function POST(request: NextRequest) {
   try {
-    if (!squareWebhookKey || !squareAccessToken || !supabaseUrl || !supabaseServiceKey) {
+    if (!squareWebhookKey || squareWebhookKey === "placeholder-key" || !squareAccessToken || !supabaseUrl || !supabaseServiceKey) {
       return NextResponse.json({ error: "Webhook integration is not configured." }, { status: 500 });
     }
 
@@ -181,6 +279,9 @@ export async function POST(request: NextRequest) {
       case "booking.updated":
       case "booking.cancelled":
         return await syncBooking(event.data.id);
+      case "payment.created":
+      case "payment.updated":
+        return await syncPayment(event.data.id);
       default:
         return NextResponse.json({ received: true });
     }

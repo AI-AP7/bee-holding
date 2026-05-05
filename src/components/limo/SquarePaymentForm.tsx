@@ -34,7 +34,8 @@ interface SquarePaymentFormProps {
   onSuccess: (paymentId: string) => void;
   onError: (error: string) => void;
   customerId?: string;
-  bookingId?: string;
+  bookingId: string;
+  idempotencyKey: string;
 }
 
 export default function SquarePaymentForm({
@@ -43,6 +44,7 @@ export default function SquarePaymentForm({
   onError,
   customerId,
   bookingId,
+  idempotencyKey,
 }: SquarePaymentFormProps) {
   const containerId = useId().replace(/:/g, "");
   const cardRef = useRef<SquareCard | null>(null);
@@ -116,6 +118,11 @@ export default function SquarePaymentForm({
       return;
     }
 
+    if (!bookingId) {
+      onError("Create the booking before submitting payment.");
+      return;
+    }
+
     setIsProcessing(true);
     setStatusMessage("Processing payment…");
     onError("");
@@ -131,11 +138,10 @@ export default function SquarePaymentForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sourceId: tokenResult.token,
-          amount,
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey,
           customerId,
           bookingId,
-          note: bookingId ? `Payment for booking ${bookingId}` : "Limo booking payment",
+          note: `Payment for booking ${bookingId}`,
         }),
       });
 

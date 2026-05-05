@@ -168,9 +168,9 @@ Notes: ${formData.notes}`;
                   </svg>
                 </div>
                 <h3 style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif", fontWeight: 700, fontSize: "1.5rem", color: "#d0bcff" }} className="mb-2">
-                  Request Sent!
+                  Mail Client Opened
                 </h3>
-                <p style={{ color: "#958ea0" }}>We&apos;ll be in touch soon to confirm your event details.</p>
+                <p style={{ color: "#958ea0" }}>Please send the prepared email from your mail app to complete the inquiry.</p>
               </motion.div>
             ) : (
               <>

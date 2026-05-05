@@ -70,14 +70,10 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("availability_blocks")
-      .select(`
-        *,
-        vehicles(name, slug)
-      `)
+      .select("vehicle_id, block_date, block_type")
       .in("vehicle_id", vehicleIds)
       .gte("block_date", startDate)
-      .lte("block_date", endDate)
-      .neq("block_type", "unavailable");
+      .lte("block_date", endDate);
 
     if (error) {
       console.error("Supabase error:", error);
@@ -107,7 +103,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       availability: availabilityMap,
-      blocks: data,
     });
   } catch (error) {
     console.error("Date range availability error:", error);

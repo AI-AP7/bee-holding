@@ -100,15 +100,24 @@ CREATE TABLE IF NOT EXISTS booking_references (
   dropoff_location TEXT,
   total_hours DECIMAL(4,2),
   total_price DECIMAL(10,2),
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'in_progress', 'completed', 'cancelled')),
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'pending_payment', 'confirmed', 'in_progress', 'completed', 'cancelled')),
   square_customer_id TEXT,
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+DO $$
+BEGIN
+  ALTER TABLE booking_references DROP CONSTRAINT IF EXISTS booking_references_status_check;
+  ALTER TABLE booking_references ADD CONSTRAINT booking_references_status_check
+    CHECK (status IN ('pending', 'pending_payment', 'confirmed', 'in_progress', 'completed', 'cancelled'));
+END $$;
+
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_availability_vehicle_date ON availability_blocks(vehicle_id, block_date);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_availability_vehicle_date_unique_block
+  ON availability_blocks(vehicle_id, block_date);
 CREATE INDEX IF NOT EXISTS idx_availability_blocks_date ON availability_blocks(block_date);
 CREATE INDEX IF NOT EXISTS idx_vehicles_active ON vehicles(is_active) WHERE is_active = true;
 CREATE INDEX IF NOT EXISTS idx_vehicles_type ON vehicles(type);
@@ -140,6 +149,11 @@ DROP POLICY IF EXISTS "Public can view approved reviews" ON reviews;
 CREATE POLICY "Public can view approved reviews"
   ON reviews FOR SELECT
   USING (is_approved = true);
+
+DROP POLICY IF EXISTS "Public can view availability blocks" ON availability_blocks;
+CREATE POLICY "Public can view availability blocks"
+  ON availability_blocks FOR SELECT
+  USING (true);
 
 -- Service role has full access (for API routes)
 DROP POLICY IF EXISTS "Service role full access vehicles" ON vehicles;
@@ -201,18 +215,23 @@ BEGIN
     RETURN jsonb_build_object('available', false, 'reason', 'Vehicle not found');
   END IF;
   
-  -- Check if there are any non-available blocks for this date
-  SELECT COUNT(*) INTO v_blocks
+  -- Any availability block means the vehicle cannot be booked for this date.
+  SELECT
+    COUNT(*),
+    CASE
+      WHEN COUNT(*) FILTER (WHERE block_type = 'booking') > 0 THEN 'booking'
+      ELSE MAX(block_type)
+    END
+  INTO v_blocks, v_status
   FROM availability_blocks
   WHERE vehicle_id = p_vehicle_id
-    AND block_date = p_date
-    AND block_type NOT IN ('unavailable');
+    AND block_date = p_date;
   
   IF v_blocks > 0 THEN
     RETURN jsonb_build_object(
       'available', false,
       'vehicle', v_vehicle_record.name,
-      'status', 'reserved'
+      'status', CASE WHEN v_status = 'booking' THEN 'reserved' ELSE 'unavailable' END
     );
   ELSE
     RETURN jsonb_build_object(

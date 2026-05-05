@@ -78,11 +78,7 @@ async function syncSquareServices() {
 
     // 3. Match and Update
     for (const vehicle of vehicles || []) {
-      // Find a matching Square service by name (fuzzy match)
-      const match = squareServices.find((s) => 
-        s.name.toLowerCase().includes(vehicle.name.toLowerCase()) ||
-        vehicle.name.toLowerCase().includes(s.name.toLowerCase())
-      );
+      const match = squareServices.find((s) => s.name.toLowerCase() === vehicle.name.toLowerCase());
 
       if (match) {
         console.log(`🔄 Matching vehicle "${vehicle.name}" with Square service "${match.name}"...`);

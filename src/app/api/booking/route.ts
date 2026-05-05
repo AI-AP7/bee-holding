@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { addHoursToTime, buildSquareStartAt, calculateBasePrice, type BookingServiceType, type FleetVehicle } from "@/lib/limo";
+import { addHoursToTime, buildSquareStartAt, calculateBookingTotals, type BookingServiceType, type FleetVehicle } from "@/lib/limo";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -36,6 +36,12 @@ interface BookingRequest {
 interface SquareCustomer {
   id: string;
 }
+
+type AvailabilityResult = {
+  available?: boolean;
+  reason?: string;
+  status?: string;
+};
 
 function validateEnvironment() {
   if (!supabaseUrl || !supabaseServiceKey || !squareAccessToken || !squareLocationId) {
@@ -100,6 +106,41 @@ async function findOrCreateSquareCustomer(input: BookingRequest) {
   return createData.customer.id;
 }
 
+async function assertVehicleAvailable(vehicleId: string, date: string) {
+  const { data, error } = await supabase.rpc("check_vehicle_availability", {
+    p_vehicle_id: vehicleId,
+    p_date: date,
+  });
+
+  if (error) {
+    console.error("Failed to check availability:", error);
+    throw new Error("Availability could not be verified.");
+  }
+
+  const availability = data as AvailabilityResult | null;
+  if (!availability?.available) {
+    return availability?.reason || availability?.status || "Vehicle is not available for the selected date.";
+  }
+
+  return null;
+}
+
+function publicBookingResponse(booking: Record<string, unknown>) {
+  return {
+    id: booking.id,
+    vehicle_id: booking.vehicle_id,
+    square_customer_id: booking.square_customer_id,
+    booking_date: booking.booking_date,
+    start_time: booking.start_time,
+    end_time: booking.end_time,
+    service_type: booking.service_type,
+    service_area: booking.service_area,
+    total_hours: booking.total_hours,
+    total_price: booking.total_price,
+    status: booking.status,
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const environmentError = validateEnvironment();
@@ -151,9 +192,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const squareCustomerId = await findOrCreateSquareCustomer(body);
     const effectiveHours = serviceType === "hourly" ? Math.max(hours, vehicle.min_hours) : 1;
     const startAt = buildSquareStartAt(date, time, bookingTimeZone);
+    const availabilityError = await assertVehicleAvailable(vehicle.id, date);
+
+    if (availabilityError) {
+      return NextResponse.json({ error: availabilityError }, { status: 409 });
+    }
+
+    const squareCustomerId = await findOrCreateSquareCustomer(body);
+    const totalPrice = calculateBookingTotals(vehicle, serviceType, serviceArea, effectiveHours, 0).total;
 
     const bookingResponse = await fetch(`${squareApiBase}/bookings`, {
       method: "POST",
@@ -214,8 +262,8 @@ export async function POST(request: NextRequest) {
       pickup_location: pickupLocation,
       dropoff_location: dropoffLocation || null,
       total_hours: effectiveHours,
-      total_price: calculateBasePrice(vehicle, serviceType, serviceArea, effectiveHours),
-      status: "confirmed",
+      total_price: totalPrice,
+      status: "pending_payment",
       notes: specialRequests || null,
     };
 
@@ -230,25 +278,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Booking was created in Square but could not be saved locally." }, { status: 500 });
     }
 
-    const { error: blockError } = await supabase.from("availability_blocks").insert({
-      vehicle_id: vehicle.id,
-      block_date: date,
-      block_type: "booking",
-      square_booking_id: bookingData.booking.id,
-      start_time: `${time}:00`,
-      end_time: addHoursToTime(time, effectiveHours),
-      buffer_minutes: 60,
-      notes: specialRequests || null,
-    });
-
-    if (blockError) {
-      console.error("Failed to insert availability block:", blockError);
-      return NextResponse.json({ error: "Booking saved, but availability could not be reserved locally." }, { status: 500 });
-    }
-
     return NextResponse.json({
       success: true,
-      booking,
+      booking: publicBookingResponse(booking as Record<string, unknown>),
       message: "Booking created and ready for payment.",
     });
   } catch (error) {
@@ -261,22 +293,30 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const bookingId = searchParams.get("id");
+    const email = searchParams.get("email");
 
     if (!bookingId) {
       return NextResponse.json({ error: "Missing id parameter." }, { status: 400 });
     }
 
+    if (!email) {
+      return NextResponse.json({ error: "Missing email parameter." }, { status: 400 });
+    }
+
     const { data, error } = await supabase
       .from("booking_references")
-      .select("*, vehicles(name)")
+      .select("id, booking_date, start_time, end_time, service_type, service_area, total_hours, total_price, status, customer_email, vehicles(name)")
       .eq("id", bookingId)
+      .eq("customer_email", email)
       .single();
 
     if (error || !data) {
       return NextResponse.json({ error: "Booking not found." }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, booking: data });
+    const safeBooking = { ...(data as Record<string, unknown>) };
+    delete safeBooking.customer_email;
+    return NextResponse.json({ success: true, booking: safeBooking });
   } catch (error) {
     console.error("Booking fetch error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

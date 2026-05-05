@@ -123,8 +123,7 @@ export async function getAvailabilityForDateRange(
     .select("*, vehicles(name)")
     .in("vehicle_id", vehicleIds)
     .gte("block_date", startDate)
-    .lte("block_date", endDate)
-    .neq("block_type", "unavailable");
+    .lte("block_date", endDate);
 
   if (error) throw error;
 
