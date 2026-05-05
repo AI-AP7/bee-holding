@@ -14,9 +14,11 @@ const squareApiBase =
     ? "https://connect.squareup.com/v2"
     : "https://connect.squareupsandbox.com/v2";
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+function getSupabase() {
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
 
 interface BookingRequest {
   vehicleId: string;
@@ -107,6 +109,7 @@ async function findOrCreateSquareCustomer(input: BookingRequest) {
 }
 
 async function assertVehicleAvailable(vehicleId: string, date: string) {
+  const supabase = getSupabase();
   const { data, error } = await supabase.rpc("check_vehicle_availability", {
     p_vehicle_id: vehicleId,
     p_date: date,
@@ -172,6 +175,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Dropoff location is required for point-to-point service." }, { status: 400 });
     }
 
+    const supabase = getSupabase();
     const { data: vehicleRecord, error: vehicleError } = await supabase
       .from("vehicles")
       .select("*")
@@ -303,6 +307,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Missing email parameter." }, { status: 400 });
     }
 
+    const supabase = getSupabase();
     const { data, error } = await supabase
       .from("booking_references")
       .select("id, booking_date, start_time, end_time, service_type, service_area, total_hours, total_price, status, customer_email, vehicles(name)")

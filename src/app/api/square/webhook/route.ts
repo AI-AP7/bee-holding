@@ -14,9 +14,11 @@ const squareApiBase =
     ? "https://connect.squareup.com/v2"
     : "https://connect.squareupsandbox.com/v2";
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+function getSupabase() {
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
 
 interface SquareWebhookEvent {
   type: string;
@@ -108,6 +110,7 @@ async function resolveVehicleId(serviceVariationId?: string | null) {
     return null;
   }
 
+  const supabase = getSupabase();
   const { data } = await supabase
     .from("vehicles")
     .select("id")
@@ -132,6 +135,7 @@ function normalizeBookingStatus(state?: string) {
 }
 
 async function syncBooking(bookingId: string) {
+  const supabase = getSupabase();
   const booking = await getSquareBooking(bookingId);
   if (!booking) {
     return NextResponse.json({ error: "Booking not found." }, { status: 404 });
@@ -197,6 +201,7 @@ async function syncBooking(bookingId: string) {
 }
 
 async function syncPayment(paymentId: string) {
+  const supabase = getSupabase();
   const payment = await getSquarePayment(paymentId);
   if (!payment) {
     return NextResponse.json({ error: "Payment not found." }, { status: 404 });

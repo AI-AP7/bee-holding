@@ -1,10 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
 import type { FleetVehicle } from "@/lib/limo";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export function getSupabaseClient() {
+  return createClient(supabaseUrl, supabaseAnonKey);
+}
 
 export type Vehicle = FleetVehicle;
 
@@ -38,6 +40,7 @@ export type AvailabilityStatus = {
 };
 
 export async function getVehicles(): Promise<Vehicle[]> {
+  const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("vehicles")
     .select("*")
@@ -51,6 +54,7 @@ export async function getVehicles(): Promise<Vehicle[]> {
 export async function getVehicleBySlug(
   slug: string
 ): Promise<Vehicle | null> {
+  const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("vehicles")
     .select("*")
@@ -63,6 +67,7 @@ export async function getVehicleBySlug(
 }
 
 export async function getServiceAreas(): Promise<ServiceArea[]> {
+  const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("service_areas")
     .select("*")
@@ -77,6 +82,7 @@ export async function getReviews(
   featured: boolean = false,
   limit: number = 10
 ): Promise<Review[]> {
+  const supabase = getSupabaseClient();
   let query = supabase
     .from("reviews")
     .select("*")
@@ -99,6 +105,7 @@ export async function checkAvailability(
   vehicleId: string,
   date: string
 ): Promise<AvailabilityStatus> {
+  const supabase = getSupabaseClient();
   const { data, error } = await supabase.rpc("check_vehicle_availability", {
     p_vehicle_id: vehicleId,
     p_date: date,
@@ -116,6 +123,7 @@ export async function getAvailabilityForDateRange(
   startDate: string,
   endDate: string
 ): Promise<Record<string, Record<string, AvailabilityStatus>>> {
+  const supabase = getSupabaseClient();
   const results: Record<string, Record<string, AvailabilityStatus>> = {};
 
   const { data, error } = await supabase
@@ -151,6 +159,7 @@ export async function getAvailabilityForDateRange(
 }
 
 export async function signInWithSocial(provider: "google" | "apple") {
+  const supabase = getSupabaseClient();
   const redirectTo = typeof window !== "undefined"
     ? `${window.location.origin}/auth/callback`
     : process.env.NEXT_PUBLIC_SITE_URL + "/auth/callback";
@@ -167,6 +176,7 @@ export async function signInWithSocial(provider: "google" | "apple") {
 }
 
 export async function signOut() {
+  const supabase = getSupabaseClient();
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
 }

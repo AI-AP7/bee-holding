@@ -11,9 +11,11 @@ const SQUARE_API_BASE = SQUARE_ENV === "production"
   ? "https://connect.squareup.com/v2"
   : "https://connect.squareupsandbox.com/v2";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+function getSupabase() {
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
 
 interface PaymentRequest {
   sourceId: string;
@@ -28,6 +30,7 @@ type AvailabilityResult = {
 };
 
 async function assertBookingStillAvailable(vehicleId: string, bookingDate: string) {
+  const supabase = getSupabase();
   const { data, error } = await supabase.rpc("check_vehicle_availability", {
     p_vehicle_id: vehicleId,
     p_date: bookingDate,
@@ -54,6 +57,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Payment configuration is incomplete." }, { status: 500 });
     }
 
+    const supabase = getSupabase();
     const body = await request.json();
     const { sourceId, idempotencyKey, bookingId } = body as PaymentRequest;
 
@@ -178,6 +182,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     if (reservedSquareBookingId) {
+      const supabase = getSupabase();
       await supabase.from("availability_blocks").delete().eq("square_booking_id", reservedSquareBookingId);
     }
     console.error("Payment API error:", error);

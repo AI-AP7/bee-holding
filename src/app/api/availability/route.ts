@@ -4,12 +4,14 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
+function getSupabase() {
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
 
 interface AvailabilityRequest {
   vehicleId: string;
@@ -28,6 +30,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const supabase = getSupabase();
     const { data, error } = await supabase.rpc("check_vehicle_availability", {
       p_vehicle_id: vehicleId,
       p_date: date,
@@ -68,6 +71,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const supabase = getSupabase();
     const { data, error } = await supabase
       .from("availability_blocks")
       .select("vehicle_id, block_date, block_type")
