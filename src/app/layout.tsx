@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { organizationSchema } from "@/lib/schemas";
+import BackgroundMusic from "@/components/BackgroundMusic";
 
 export const metadata: Metadata = {
   title: "Black Excellence Enterprises",
@@ -52,6 +53,7 @@ export default function RootLayout({
       <body className="antialiased">
         <div className="grain-overlay" aria-hidden="true" />
         {children}
+        <BackgroundMusic />
       </body>
     </html>
   );

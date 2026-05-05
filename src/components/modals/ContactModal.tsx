@@ -73,7 +73,7 @@ export default function ContactModal() {
 
         {/* Phone */}
         <a
-          href="tel:+14105550123"
+          href="tel:+14436800071"
           className="group flex items-start gap-4 rounded-lg bg-surface-mid p-4 transition-colors hover:bg-surface-highest"
         >
           <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-surface-highest">
@@ -92,7 +92,7 @@ export default function ContactModal() {
           <div>
             <p className="text-xs uppercase tracking-wider text-on-surface-variant mb-1">Phone</p>
             <p className="text-on-surface group-hover:text-primary transition-colors">
-              +1 (410) 555-0123
+              +1 (443) 680-0071
             </p>
           </div>
         </a>
