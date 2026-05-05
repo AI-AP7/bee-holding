@@ -138,7 +138,7 @@ function SliderView({
               fill
               className="object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-surface-high via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-black/10" />
           </motion.div>
         </AnimatePresence>
 
@@ -252,7 +252,7 @@ function ListView({
               fill
               className="object-cover transition-transform duration-500 group-hover:scale-105"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-surface-high via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-black/10" />
           </div>
           <div className="p-6">
             <p className="text-gold text-xs uppercase tracking-widest mb-2" style={{ fontFamily: "var(--font-mono)" }}>
