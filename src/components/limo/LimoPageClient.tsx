@@ -51,12 +51,6 @@ export default function LimoPageClient({ vehicles }: LimoPageClientProps) {
   return (
     <>
       <SeoScripts />
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-lime focus:px-4 focus:py-2 focus:text-black"
-      >
-        Skip to main content
-      </a>
       <main id="main-content" className="min-h-screen bg-background">
         <section className="relative flex min-h-[65vh] flex-col">
           <div
