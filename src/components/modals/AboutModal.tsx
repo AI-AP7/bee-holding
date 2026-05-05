@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useModalStore } from "@/lib/store";
+import Image from "next/image";
 
 const aboutContent = {
   imageUrl: "/john_bernard.png",
@@ -30,10 +31,12 @@ export default function AboutModal() {
       <div className="grid md:grid-cols-2">
         {/* Left: Image */}
         <div className="relative h-64 md:h-auto bg-surface-mid">
-          <img
+          <Image
             src={aboutContent.imageUrl}
             alt="Black Excellence Enterprises leadership"
-            className="w-full h-full object-cover"
+            fill
+            className="object-cover"
+            sizes="(min-width: 768px) 50vw, 100vw"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-surface-high via-transparent to-transparent md:bg-gradient-to-r" />
           <div className="absolute bottom-6 left-6 px-4 py-2 bg-gold text-black font-bold text-sm uppercase tracking-wider" style={{ fontFamily: "var(--font-mono)" }}>

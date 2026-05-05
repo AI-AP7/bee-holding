@@ -1,25 +1,7 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Manrope, JetBrains_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { organizationSchema } from "@/lib/schemas";
-
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const manrope = Manrope({
-  variable: "--font-body",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
-});
 
 export const metadata: Metadata = {
   title: "Black Excellence Enterprises",
@@ -50,6 +32,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const squareEnvironment = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT === "production" ? "production" : "sandbox";
+  const squareScriptSource =
+    squareEnvironment === "production"
+      ? "https://web.squarecdn.com/v1/square.js"
+      : "https://sandbox.web.squarecdn.com/v1/square.js";
+
   return (
     <html lang="en" className="dark">
       <head>
@@ -59,11 +47,9 @@ export default function RootLayout({
             __html: JSON.stringify(organizationSchema),
           }}
         />
-        <script src="https://web.squarecdn.com/v1/payments.js"></script>
+        <Script src={squareScriptSource} strategy="afterInteractive" />
       </head>
-      <body
-        className={`${spaceGrotesk.variable} ${manrope.variable} ${jetbrainsMono.variable} antialiased`}
-      >
+      <body className="antialiased">
         <div className="grain-overlay" aria-hidden="true" />
         {children}
       </body>

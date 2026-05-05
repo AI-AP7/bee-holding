@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 
@@ -52,10 +53,12 @@ export default function KJAbout() {
             transition={{ duration: 0.9, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
             className="relative aspect-[4/3] rounded-lg overflow-hidden"
           >
-            <img
+            <Image
               src="/K&J-board.jpeg"
               alt="K & J Sound Company"
-              className="object-cover w-full h-full"
+              fill
+              className="object-cover"
+              sizes="(min-width: 768px) 50vw, 100vw"
             />
           </motion.div>
         </div>

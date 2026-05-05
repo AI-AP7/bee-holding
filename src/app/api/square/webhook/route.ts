@@ -1,224 +1,191 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import { createClient } from "@supabase/supabase-js";
+import { addHoursToTime } from "@/lib/limo";
 
-const SQUARE_ENV = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT || "sandbox";
-const SQUARE_WEBHOOK_KEY = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY || "";
-const SQUARE_ACCESS_TOKEN = process.env.SQUARE_ACCESS_TOKEN || "";
+const squareEnvironment = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT || "sandbox";
+const squareWebhookKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY || "";
+const squareAccessToken = process.env.SQUARE_ACCESS_TOKEN || "";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
-const SQUARE_API_BASE = SQUARE_ENV === "production"
-  ? "https://connect.squareup.com/v2"
-  : "https://connect.squareupsandbox.com/v2";
+const squareApiBase =
+  squareEnvironment === "production"
+    ? "https://connect.squareup.com/v2"
+    : "https://connect.squareupsandbox.com/v2";
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
 
 interface SquareWebhookEvent {
-  merchant_id: string;
   type: string;
-  event_id: string;
-  created_at: string;
   data: {
-    type: string;
     id: string;
   };
 }
 
 interface SquareBooking {
   id: string;
-  customer_id: string;
-  customer_note: string;
+  customer_id?: string;
+  customer_note?: string;
   start_at: string;
-  end_at: string;
-  location_id: string;
-  state: string;
-  service_variation_id: string;
-  appointment_segments: Array<{
-    service_variation_id: string;
-    team_member_id: string;
-    start_at: string;
-    duration_minutes: number;
-    service_note: string;
+  location_id?: string;
+  status?: string;
+  appointment_segments?: Array<{
+    service_variation_id?: string;
+    duration_minutes?: number;
   }>;
 }
 
-function verifyWebhookSignature(
-  signature: string,
-  body: string,
-  url: string
-): boolean {
-  if (!SQUARE_WEBHOOK_KEY) return true;
+function verifyWebhookSignature(signature: string, body: string, url: string) {
+  if (!squareWebhookKey) {
+    return false;
+  }
 
-  const signatureBase = `${url}${body}`;
   const expectedSignature = crypto
-    .createHmac("sha256", SQUARE_WEBHOOK_KEY)
-    .update(signatureBase)
+    .createHmac("sha256", squareWebhookKey)
+    .update(`${url}${body}`)
     .digest("base64");
 
   return signature === expectedSignature;
 }
 
 async function getSquareBooking(bookingId: string): Promise<SquareBooking | null> {
-  try {
-    const response = await fetch(`${SQUARE_API_BASE}/bookings/${bookingId}`, {
-      headers: {
-        "Square-Version": "2024-01-18",
-        "Authorization": `Bearer ${SQUARE_ACCESS_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-    });
+  const response = await fetch(`${squareApiBase}/bookings/${bookingId}`, {
+    headers: {
+      "Square-Version": "2024-01-18",
+      Authorization: `Bearer ${squareAccessToken}`,
+      "Content-Type": "application/json",
+    },
+  });
 
-    if (!response.ok) {
-      console.error("Failed to fetch booking from Square:", await response.text());
-      return null;
-    }
-
-    const data = await response.json();
-    return data.booking || null;
-  } catch (error) {
-    console.error("Error fetching Square booking:", error);
+  if (!response.ok) {
+    console.error("Failed to fetch booking from Square:", await response.text());
     return null;
+  }
+
+  const data = (await response.json()) as { booking?: SquareBooking };
+  return data.booking || null;
+}
+
+async function resolveVehicleId(serviceVariationId?: string | null) {
+  if (!serviceVariationId) {
+    return null;
+  }
+
+  const { data } = await supabase
+    .from("vehicles")
+    .select("id")
+    .eq("square_service_variation_id", serviceVariationId)
+    .maybeSingle();
+
+  return data?.id ?? null;
+}
+
+function normalizeBookingStatus(state?: string) {
+  switch (state) {
+    case "ACCEPTED":
+      return "confirmed";
+    case "CANCELLED_BY_CUSTOMER":
+    case "CANCELLED_BY_MERCHANT":
+    case "DECLINED":
+    case "NO_SHOW":
+      return "cancelled";
+    default:
+      return "pending";
   }
 }
 
-async function getVehicleFromServiceVariation(serviceVariationId: string): Promise<string | null> {
-  try {
-    const response = await fetch(
-      `${SQUARE_API_BASE}/catalog/list?types=ITEM_VARIATION`,
-      {
-        headers: {
-          "Square-Version": "2024-01-18",
-          "Authorization": `Bearer ${SQUARE_ACCESS_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    const variation = data.objects?.find(
-      (obj: { id: string }) => obj.id === serviceVariationId
-    );
-
-    return variation?.item_variation_data?.name || null;
-  } catch {
-    return null;
+async function syncBooking(bookingId: string) {
+  const booking = await getSquareBooking(bookingId);
+  if (!booking) {
+    return NextResponse.json({ error: "Booking not found." }, { status: 404 });
   }
+
+  const startDate = new Date(booking.start_at);
+  const blockDate = startDate.toISOString().slice(0, 10);
+  const startTime = startDate.toISOString().slice(11, 19);
+  const durationMinutes = booking.appointment_segments?.[0]?.duration_minutes ?? 60;
+  const durationHours = Math.max(1, Math.round(durationMinutes / 60));
+  const serviceVariationId = booking.appointment_segments?.[0]?.service_variation_id ?? null;
+  const vehicleId = await resolveVehicleId(serviceVariationId);
+  const normalizedStatus = normalizeBookingStatus(booking.status);
+
+  const bookingReference = {
+    vehicle_id: vehicleId,
+    square_booking_id: bookingId,
+    square_customer_id: booking.customer_id ?? null,
+    booking_date: blockDate,
+    start_time: startTime,
+    end_time: addHoursToTime(startTime.slice(0, 5), durationHours),
+    service_type: durationHours > 1 ? "hourly" : "point_to_point",
+    status: normalizedStatus,
+    notes: booking.customer_note ?? null,
+    total_hours: durationHours,
+  };
+
+  const { error: bookingError } = await supabase
+    .from("booking_references")
+    .upsert(bookingReference, { onConflict: "square_booking_id" });
+
+  if (bookingError) {
+    console.error("Failed to upsert booking reference:", bookingError);
+    return NextResponse.json({ error: "Failed to sync booking reference." }, { status: 500 });
+  }
+
+  if (vehicleId && normalizedStatus !== "cancelled") {
+    const { error: blockError } = await supabase.from("availability_blocks").upsert(
+      {
+        vehicle_id: vehicleId,
+        block_date: blockDate,
+        block_type: "booking",
+        square_booking_id: bookingId,
+        start_time: startTime,
+        end_time: addHoursToTime(startTime.slice(0, 5), durationHours),
+        buffer_minutes: 60,
+        notes: booking.customer_note ?? null,
+      },
+      { onConflict: "vehicle_id,block_date,square_booking_id" }
+    );
+
+    if (blockError) {
+      console.error("Failed to upsert availability block:", blockError);
+      return NextResponse.json({ error: "Failed to sync availability block." }, { status: 500 });
+    }
+  }
+
+  if (normalizedStatus === "cancelled") {
+    await supabase.from("availability_blocks").delete().eq("square_booking_id", bookingId);
+  }
+
+  return NextResponse.json({ received: true });
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.text();
-    const signature = request.headers.get("x-square-hmacsha256-signature") || "";
-    const url = request.url;
-
-    if (!verifyWebhookSignature(signature, body, url)) {
-      return NextResponse.json(
-        { error: "Invalid signature" },
-        { status: 401 }
-      );
+    if (!squareWebhookKey || !squareAccessToken || !supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json({ error: "Webhook integration is not configured." }, { status: 500 });
     }
 
-    const event: SquareWebhookEvent = JSON.parse(body);
-    const eventType = event.type;
+    const body = await request.text();
+    const signature = request.headers.get("x-square-hmacsha256-signature") || "";
 
-    console.log(`Received Square webhook: ${eventType}`, event.data);
+    if (!verifyWebhookSignature(signature, body, request.url)) {
+      return NextResponse.json({ error: "Invalid signature." }, { status: 401 });
+    }
 
-    switch (eventType) {
+    const event = JSON.parse(body) as SquareWebhookEvent;
+    switch (event.type) {
       case "booking.created":
-        return await handleBookingCreated(event.data.id);
-      
       case "booking.updated":
-        return await handleBookingUpdated(event.data.id);
-      
       case "booking.cancelled":
-        return await handleBookingCancelled(event.data.id);
-      
+        return await syncBooking(event.data.id);
       default:
-        console.log(`Unhandled event type: ${eventType}`);
         return NextResponse.json({ received: true });
     }
   } catch (error) {
     console.error("Webhook error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-}
-
-async function handleBookingCreated(bookingId: string) {
-  const booking = await getSquareBooking(bookingId);
-  if (!booking) {
-    return NextResponse.json({ error: "Booking not found" }, { status: 404 });
-  }
-
-  const startDate = new Date(booking.start_at);
-  const endDate = new Date(booking.end_at);
-  const blockDate = startDate.toISOString().split("T")[0];
-  const startTime = startDate.toTimeString().split(" ")[0];
-  const endTime = endDate.toTimeString().split(" ")[0];
-
-  const serviceVariationId = booking.appointment_segments?.[0]?.service_variation_id;
-  const vehicleName = serviceVariationId 
-    ? await getVehicleFromServiceVariation(serviceVariationId) 
-    : null;
-
-  const bookingData = {
-    vehicle_id: null, // Will be matched by vehicle name in production
-    square_booking_id: bookingId,
-    customer_name: "Guest Customer", // Will be updated via customer_id
-    booking_date: blockDate,
-    start_time: startTime,
-    end_time: endTime,
-    service_type: "hourly",
-    status: booking.state === "ACCEPTED" ? "confirmed" : "pending",
-    square_customer_id: booking.customer_id,
-    notes: booking.customer_note,
-    total_price: null, // Calculated separately
-  };
-
-  console.log("Booking created:", bookingData);
-
-  return NextResponse.json({
-    received: true,
-    booking: bookingData,
-    vehicle: vehicleName,
-  });
-}
-
-async function handleBookingUpdated(bookingId: string) {
-  const booking = await getSquareBooking(bookingId);
-  if (!booking) {
-    return NextResponse.json({ error: "Booking not found" }, { status: 404 });
-  }
-
-  const statusMap: Record<string, string> = {
-    PENDING: "pending",
-    ACCEPTED: "confirmed",
-    CANCELLED_BY_CUSTOMER: "cancelled",
-    CANCELLED_BY_MERCHANT: "cancelled",
-    DECLINED: "cancelled",
-    NO_SHOW: "cancelled",
-  };
-
-  const bookingData = {
-    square_booking_id: bookingId,
-    status: statusMap[booking.state] || "pending",
-    updated_at: new Date().toISOString(),
-  };
-
-  console.log("Booking updated:", bookingData);
-
-  return NextResponse.json({
-    received: true,
-    update: bookingData,
-  });
-}
-
-async function handleBookingCancelled(bookingId: string) {
-  console.log("Booking cancelled:", bookingId);
-
-  return NextResponse.json({
-    received: true,
-    action: "cancelled",
-    booking_id: bookingId,
-  });
 }

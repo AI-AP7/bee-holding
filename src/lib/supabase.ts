@@ -1,29 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
+import type { FleetVehicle } from "@/lib/limo";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export type Vehicle = {
-  id: string;
-  name: string;
-  slug: string;
-  type: "stretch_limo" | "suv" | "sedan";
-  description: string | null;
-  capacity: number;
-  luggage_capacity: number;
-  hourly_rate_local: number;
-  hourly_rate_distance: number;
-  four_hour_block_local: number | null;
-  four_hour_block_distance: number | null;
-  image_url: string | null;
-  features: string[];
-  is_active: boolean;
-  display_order: number;
-  created_at: string;
-  updated_at: string;
-};
+export type Vehicle = FleetVehicle;
 
 export type ServiceArea = {
   id: string;

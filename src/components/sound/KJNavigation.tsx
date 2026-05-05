@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 
 interface KJNavigationProps {
   onEventClick: () => void;
@@ -28,7 +29,7 @@ export default function KJNavigation({ onEventClick, onInstallClick }: KJNavigat
     >
       <div className="max-w-7xl mx-auto px-6 md:px-12 flex items-center justify-between h-16">
         {/* Home Link */}
-        <a href="/" className="flex items-center gap-3 group">
+        <Link href="/" className="flex items-center gap-3 group">
           <div className="w-8 h-8 bg-lime rounded-md flex items-center justify-center">
             <span className="text-black font-bold text-sm" style={{ fontFamily: "var(--font-display)" }}>
               B
@@ -41,7 +42,7 @@ export default function KJNavigation({ onEventClick, onInstallClick }: KJNavigat
             BLACK EXCELLENCE<br />
             <span className="text-[10px] text-on-surface-variant font-normal">ENTERPRISE</span>
           </span>
-        </a>
+        </Link>
 
         {/* Nav Links */}
         <div className="hidden md:flex items-center gap-8">

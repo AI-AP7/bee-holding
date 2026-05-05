@@ -2,6 +2,7 @@
 
 import { useModalStore } from "@/lib/store";
 import { motion } from "framer-motion";
+import Link from "next/link";
 
 export default function Navigation() {
   const { openModal } = useModalStore();
@@ -15,7 +16,7 @@ export default function Navigation() {
         className="flex items-center justify-between"
       >
         {/* Logo */}
-        <a href="/" className="flex items-center gap-3 group">
+        <Link href="/" className="flex items-center gap-3 group">
           <div className="w-10 h-10 bg-primary rounded-md flex items-center justify-center">
             <span className="text-surface-high font-bold text-lg" style={{ fontFamily: "var(--font-display)" }}>
               B
@@ -28,7 +29,7 @@ export default function Navigation() {
             BLACK EXCELLENCE<br />
             <span className="text-xs text-on-surface-variant font-normal">ENTERPRISE</span>
           </span>
-        </a>
+        </Link>
 
         {/* Navigation Links */}
         <div className="flex items-center gap-1 md:gap-2">

@@ -11,6 +11,26 @@ const squareApiBase = squareEnv === "production"
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+type SquareCatalogObject = {
+  appointments_service_data?: {
+    name?: string;
+    service_variation_id?: string;
+  };
+  item_data?: {
+    variations?: Array<{
+      id: string;
+      item_variation_data?: {
+        name?: string;
+      };
+    }>;
+  };
+};
+
+type SquareServiceMatch = {
+  name: string;
+  id: string;
+};
+
 async function syncSquareServices() {
   console.log("🚀 Starting Square to Supabase sync...");
 
@@ -25,19 +45,25 @@ async function syncSquareServices() {
       },
     });
 
-    const squareData = await squareResponse.json();
+    const squareData = (await squareResponse.json()) as { objects?: SquareCatalogObject[] };
     if (!squareData.objects) {
       console.log("❌ No services found in Square.");
       return;
     }
 
     // Map Square services by name
-    const squareServices = squareData.objects.flatMap((obj: any) => {
-      const name = obj.appointments_service_data.name;
-      return obj.item_data?.variations?.map((v: any) => ({
-        name: `${name} - ${v.item_variation_data.name}`,
-        id: v.id,
-      })) || [{ name, id: obj.appointments_service_data.service_variation_id }];
+    const squareServices = squareData.objects.flatMap((obj): SquareServiceMatch[] => {
+      const name = obj.appointments_service_data?.name;
+      if (!name) {
+        return [];
+      }
+
+      const serviceVariationId = obj.appointments_service_data?.service_variation_id;
+
+      return obj.item_data?.variations?.map((variation) => ({
+        name: `${name} - ${variation.item_variation_data?.name || "Default"}`,
+        id: variation.id,
+      })) || (serviceVariationId ? [{ name, id: serviceVariationId }] : []);
     });
 
     console.log(`✅ Found ${squareServices.length} service variations in Square.`);
@@ -53,7 +79,7 @@ async function syncSquareServices() {
     // 3. Match and Update
     for (const vehicle of vehicles || []) {
       // Find a matching Square service by name (fuzzy match)
-      const match = squareServices.find((s: any) => 
+      const match = squareServices.find((s) => 
         s.name.toLowerCase().includes(vehicle.name.toLowerCase()) ||
         vehicle.name.toLowerCase().includes(s.name.toLowerCase())
       );

@@ -23,9 +23,9 @@
   --color-white: #ffffff;
   --color-black: #000000;
 
-  --font-display: "Space Grotesk", system-ui, sans-serif;
-  --font-body: "Manrope", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-display: "Avenir Next Condensed", "Franklin Gothic Medium", "Segoe UI", sans-serif;
+  --font-body: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-mono: "SFMono-Regular", "Menlo", "Consolas", monospace;
 
   --radius-sm: 0.125rem;
   --radius-md: 0.25rem;
@@ -40,6 +40,7 @@
 
 html {
   scroll-behavior: smooth;
+  color-scheme: dark;
 }
 
 body {

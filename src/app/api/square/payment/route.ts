@@ -19,6 +19,10 @@ interface PaymentRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!SQUARE_ACCESS_TOKEN || !SQUARE_LOCATION_ID) {
+      return NextResponse.json({ error: "Square payment configuration is incomplete." }, { status: 500 });
+    }
+
     const body = await request.json();
     const { sourceId, amount, idempotencyKey, customerId, note, bookingId } = body as PaymentRequest;
 
@@ -27,6 +31,10 @@ export async function POST(request: NextRequest) {
         { error: "Missing required fields: sourceId, amount, idempotencyKey" },
         { status: 400 }
       );
+    }
+
+    if (amount <= 0) {
+      return NextResponse.json({ error: "Amount must be greater than zero." }, { status: 400 });
     }
 
     const paymentRequest = {

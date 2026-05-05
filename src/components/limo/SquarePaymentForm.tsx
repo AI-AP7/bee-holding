@@ -1,6 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { formatCurrency } from "@/lib/limo";
+
+interface SquareCardTokenResult {
+  status: string;
+  token?: string;
+  errors?: Array<{ message?: string }>;
+}
+
+interface SquareCard {
+  attach: (selector: string) => Promise<void>;
+  destroy: () => Promise<boolean>;
+  tokenize: () => Promise<SquareCardTokenResult>;
+}
+
+interface SquarePayments {
+  card: () => Promise<SquareCard>;
+}
+
+interface SquareGlobal {
+  payments: (appId: string, locationId: string) => SquarePayments;
+}
+
+declare global {
+  interface Window {
+    Square?: SquareGlobal;
+  }
+}
 
 interface SquarePaymentFormProps {
   amount: number;
@@ -10,12 +37,6 @@ interface SquarePaymentFormProps {
   bookingId?: string;
 }
 
-declare global {
-  interface Window {
-    Square: any;
-  }
-}
-
 export default function SquarePaymentForm({
   amount,
   onSuccess,
@@ -23,107 +44,148 @@ export default function SquarePaymentForm({
   customerId,
   bookingId,
 }: SquarePaymentFormProps) {
-  const [payments, setPayments] = useState<any>(null);
-  const [card, setCard] = useState<any>(null);
+  const containerId = useId().replace(/:/g, "");
+  const cardRef = useRef<SquareCard | null>(null);
+  const initializedRef = useRef(false);
+  const [isReady, setIsReady] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
 
   useEffect(() => {
-    if (!window.Square) {
-      onError("Square SDK not loaded");
+    let cancelled = false;
+
+    const initializeSquare = async () => {
+      if (initializedRef.current) {
+        return;
+      }
+
+      const appId = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || "";
+      const locationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || "";
+      if (!appId || !locationId) {
+        onError("Square is not configured. Add the public application and location IDs.");
+        return;
+      }
+
+      const square = window.Square;
+      if (!square) {
+        onError("Square payment form is still loading. Please wait a moment and try again.");
+        return;
+      }
+
+      try {
+        initializedRef.current = true;
+        const payments = square.payments(appId, locationId);
+        const card = await payments.card();
+        await card.attach(`#${containerId}`);
+
+        if (cancelled) {
+          await card.destroy();
+          return;
+        }
+
+        cardRef.current = card;
+        setIsReady(true);
+        setStatusMessage("Secure card field is ready.");
+      } catch (error) {
+        initializedRef.current = false;
+        const message = error instanceof Error ? error.message : "Failed to initialize the Square payment form.";
+        onError(message);
+      }
+    };
+
+    const timer = window.setTimeout(() => {
+      void initializeSquare();
+    }, 50);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      setIsReady(false);
+      initializedRef.current = false;
+      const card = cardRef.current;
+      cardRef.current = null;
+      if (card) {
+        void card.destroy();
+      }
+    };
+  }, [containerId, onError]);
+
+  const handlePayment = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!cardRef.current || isProcessing) {
       return;
     }
 
-    const initializeSquare = async () => {
-      try {
-        const appId = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || "";
-        const locationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || "";
-        
-        const squarePayments = window.Square.payments(appId, locationId);
-        setPayments(squarePayments);
-
-        const cardInstance = await squarePayments.card();
-        await cardInstance.attach("#card-container");
-        setCard(cardInstance);
-      } catch (e) {
-        console.error("Square initialization error:", e);
-        onError("Failed to initialize payment form");
-      }
-    };
-
-    initializeSquare();
-
-    return () => {
-      if (card) {
-        card.destroy();
-      }
-    };
-  }, []);
-
-  const handlePayment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!card || isProcessing) return;
-
     setIsProcessing(true);
-    try {
-      const result = await card.tokenize();
-      if (result.status === "OK") {
-        const response = await fetch("/api/square/payment", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sourceId: result.token,
-            amount,
-            idempotencyKey: crypto.randomUUID(),
-            customerId,
-            bookingId,
-            note: `Payment for booking ${bookingId}`,
-          }),
-        });
+    setStatusMessage("Processing payment…");
+    onError("");
 
-        const data = await response.json();
-        if (data.success) {
-          onSuccess(data.payment.id);
-        } else {
-          onError(data.error || "Payment failed");
-        }
-      } else {
-        onError(result.errors[0].message);
+    try {
+      const tokenResult = await cardRef.current.tokenize();
+      if (tokenResult.status !== "OK" || !tokenResult.token) {
+        throw new Error(tokenResult.errors?.[0]?.message || "Card details could not be tokenized.");
       }
-    } catch (e) {
-      console.error("Payment submission error:", e);
-      onError("An unexpected error occurred during payment");
+
+      const response = await fetch("/api/square/payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceId: tokenResult.token,
+          amount,
+          idempotencyKey: crypto.randomUUID(),
+          customerId,
+          bookingId,
+          note: bookingId ? `Payment for booking ${bookingId}` : "Limo booking payment",
+        }),
+      });
+
+      const data = (await response.json()) as { success?: boolean; payment?: { id?: string }; error?: string };
+      if (!response.ok || !data.success || !data.payment?.id) {
+        throw new Error(data.error || "Payment failed.");
+      }
+
+      setStatusMessage("Payment processed successfully.");
+      onSuccess(data.payment.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "An unexpected payment error occurred.";
+      setStatusMessage("");
+      onError(message);
     } finally {
       setIsProcessing(false);
     }
   };
 
   return (
-    <div className="bg-surface-high p-6 rounded-xl ghost-border mt-8">
-      <h3 className="text-xl text-primary mb-6" style={{ fontFamily: "var(--font-display)" }}>
+    <div className="mt-8 rounded-xl bg-surface-high p-6 ghost-border">
+      <h3 className="mb-6 text-xl text-primary" style={{ fontFamily: "var(--font-display)" }}>
         Secure Payment
       </h3>
-      <p className="text-sm text-on-surface-variant mb-6">
-        Amount due: <span className="text-lime font-bold">${amount.toFixed(2)}</span>
+      <p className="mb-6 text-sm text-on-surface-variant">
+        Amount due: <span className="font-bold text-lime">{formatCurrency(amount)}</span>
       </p>
-      
+
       <form id="payment-form" onSubmit={handlePayment}>
-        <div id="card-container" className="mb-6 min-h-[100px]" />
-        
+        <div id={containerId} className="mb-6 min-h-[120px] rounded-lg border border-outline bg-surface-mid p-3" />
+
         <button
           type="submit"
-          disabled={!card || isProcessing}
-          className="w-full btn-lime py-4 text-sm uppercase tracking-wider disabled:opacity-50"
+          disabled={!isReady || isProcessing}
+          className="btn-lime w-full py-4 text-sm uppercase tracking-wider disabled:opacity-50"
         >
-          {isProcessing ? "Processing Payment..." : `Pay $${amount.toFixed(2)} Now`}
+          {isProcessing ? "Processing Payment…" : `Pay ${formatCurrency(amount)} Now`}
         </button>
       </form>
-      
-      <div className="mt-4 flex items-center justify-center gap-2 text-xs text-on-surface-variant opacity-50">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+
+      <p aria-live="polite" className="mt-4 min-h-5 text-xs text-on-surface-variant">
+        {statusMessage}
+      </p>
+
+      <div className="mt-4 flex items-center justify-center gap-2 text-xs text-on-surface-variant opacity-70">
+        <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
           <path d="M7 11V7a5 5 0 0110 0v4" />
         </svg>
-        <span>SSL SECURED SQUARE TRANSACTION</span>
+        <span>Square-hosted card entry keeps your site out of raw card-data scope.</span>
       </div>
     </div>
   );

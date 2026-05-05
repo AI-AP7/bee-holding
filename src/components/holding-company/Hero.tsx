@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useModalStore } from "@/lib/store";
+import Image from "next/image";
 
 export default function Hero() {
   const { openModal } = useModalStore();
@@ -16,10 +17,14 @@ export default function Hero() {
           transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
           className="mb-8 flex flex-col items-center"
         >
-          <img
+          <Image
             src="/BEE_logo_transparent.png"
             alt="Black Excellence Enterprises"
-            className="w-full max-w-2xl h-auto object-contain mb-0"
+            width={1200}
+            height={675}
+            className="mb-0 h-auto w-full max-w-2xl object-contain"
+            sizes="(min-width: 1024px) 64rem, 100vw"
+            priority
           />
           <motion.p
             initial={{ opacity: 0, y: 10 }}

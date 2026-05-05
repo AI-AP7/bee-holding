@@ -1,41 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
-import Image from "next/image";
-
-const portfolioItems = [
-  {
-    type: "video",
-    src: "/kj/events.mp4",
-    label: "Event Production",
-    span: "col-span-2 row-span-2",
-  },
-  {
-    type: "image",
-    src: "/kj/install1.jpg",
-    label: "AV Installation",
-    span: "",
-  },
-  {
-    type: "image",
-    src: "/kj/install2.jpg",
-    label: "AV Installation",
-    span: "",
-  },
-  {
-    type: "image",
-    src: "/kj/install3.jpg",
-    label: "AV Installation",
-    span: "",
-  },
-  {
-    type: "image",
-    src: "/kj/kj_sound.jpg",
-    label: "Event Production",
-    span: "",
-  },
-];
 
 export default function KJPortfolio() {
   const ref = useRef(null);

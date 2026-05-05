@@ -16,12 +16,6 @@ interface AvailabilityRequest {
   date: string;
 }
 
-interface DateRangeRequest {
-  vehicleIds: string[];
-  startDate: string;
-  endDate: string;
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

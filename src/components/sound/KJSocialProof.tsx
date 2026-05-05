@@ -44,7 +44,7 @@ export default function KJSocialProof() {
               Trusted by Industry Professionals <span style={{ color: "#ffe083" }}>Across the Region.</span>
             </h2>
             <div className="grid grid-cols-3 gap-4">
-              {stats.map((stat, i) => (
+              {stats.map((stat) => (
                 <div key={stat.label} className="text-left">
                   <p
                     style={{
@@ -81,7 +81,7 @@ export default function KJSocialProof() {
             transition={{ duration: 0.9, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
             className="grid grid-cols-1 gap-4"
           >
-            {categories.map((cat, i) => (
+            {categories.map((cat) => (
               <div
                 key={cat.name}
                 className="kj-glass-card flex items-center gap-6"

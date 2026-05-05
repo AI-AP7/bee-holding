@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
   min_hours INTEGER DEFAULT 1,
   image_url TEXT,
   features JSONB DEFAULT '[]',
+  square_service_variation_id TEXT UNIQUE,
   is_active BOOLEAN DEFAULT true,
   display_order INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -31,6 +32,10 @@ DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vehicles' AND column_name = 'is_active') THEN
     ALTER TABLE vehicles ADD COLUMN is_active BOOLEAN DEFAULT true;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vehicles' AND column_name = 'square_service_variation_id') THEN
+    ALTER TABLE vehicles ADD COLUMN square_service_variation_id TEXT UNIQUE;
   END IF;
   
   -- Update type constraint if necessary

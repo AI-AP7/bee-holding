@@ -45,8 +45,6 @@ export default function CompaniesModal() {
     useModalStore();
   const [showSoundInquiry, setShowSoundInquiry] = useState(false);
 
-  const currentCompany = companies[selectedCompanyIndex];
-
   const handleSoundInquiry = () => {
     setShowSoundInquiry(true);
   };
@@ -104,7 +102,7 @@ export default function CompaniesModal() {
             onSoundInquiry={handleSoundInquiry}
           />
         ) : (
-          <ListView companies={companies} onClose={closeModal} onSoundInquiry={handleSoundInquiry} />
+          <ListView companies={companies} onSoundInquiry={handleSoundInquiry} />
         )}
       </div>
 
@@ -256,11 +254,9 @@ function SliderView({
 
 function ListView({
   companies,
-  onClose,
   onSoundInquiry,
 }: {
   companies: Company[];
-  onClose: () => void;
   onSoundInquiry: () => void;
 }) {
   return (
