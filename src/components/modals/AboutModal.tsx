@@ -3,13 +3,14 @@
 import { motion } from "framer-motion";
 import { useModalStore } from "@/lib/store";
 import Image from "next/image";
+import { companyCount } from "@/lib/companies";
 
 const aboutContent = {
   imageUrl: "/john_bernard.png",
   title: "Founder/Chairman",
   facts: [
     "Black Family Owned",
-    "2 Businesses",
+    `${companyCount} Businesses`,
     "20+ Years of Experience",
   ],
   description:

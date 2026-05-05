@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { companyCount } from "@/lib/companies";
 
 type ModalType = "about" | "companies" | "contact" | null;
 type CompaniesView = "slider" | "list";
@@ -17,8 +18,6 @@ interface ModalState {
   nextCompany: () => void;
   prevCompany: () => void;
 }
-
-const COMPANY_COUNT = 2; // UFirst Limos and K & J Sound
 
 export const useModalStore = create<ModalState>((set) => ({
   activeModal: null,
@@ -42,11 +41,11 @@ export const useModalStore = create<ModalState>((set) => ({
   setSelectedCompany: (index) => set({ selectedCompanyIndex: index }),
   
   nextCompany: () => set((state) => ({ 
-    selectedCompanyIndex: (state.selectedCompanyIndex + 1) % COMPANY_COUNT 
+    selectedCompanyIndex: (state.selectedCompanyIndex + 1) % companyCount 
   })),
   
   prevCompany: () => set((state) => ({ 
-    selectedCompanyIndex: (state.selectedCompanyIndex - 1 + COMPANY_COUNT) % COMPANY_COUNT 
+    selectedCompanyIndex: (state.selectedCompanyIndex - 1 + companyCount) % companyCount 
   })),
 }));
 

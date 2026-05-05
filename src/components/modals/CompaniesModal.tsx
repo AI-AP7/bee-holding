@@ -6,46 +6,21 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import SoundInquiryModal from "./SoundInquiryModal";
-
-interface Company {
-  id: string;
-  name: string;
-  tagline: string;
-  description: string;
-  imageUrl: string;
-  cta: string;
-  href: string;
-}
-
-const companies: Company[] = [
-  {
-    id: "ufirst-limos",
-    name: "UFirst Limos",
-    tagline: "Premium Transportation",
-    description:
-      "Luxury limousine service serving Maryland, DC, Virginia, and Pennsylvania. Experience elegance on wheels with our premium fleet.",
-    imageUrl: "/cadilac_esv.jpg",
-    cta: "Book Now",
-    href: "/limo",
-  },
-  {
-    id: "kj-sound",
-    name: "K & J Sound Company",
-    tagline: "Professional Audio",
-    description:
-      "Professional audio solutions. From custom lighting and sound installations, to top quality live sound and event production, We bring the our clients the best.",
-    imageUrl: "/kj_sound.jpg",
-    cta: "Learn More",
-    href: "/sound",
-  },
-];
+import ContractingInquiryModal from "./ContractingInquiryModal";
+import { companies, type Company } from "@/lib/companies";
 
 export default function CompaniesModal() {
   const { closeModal, companiesView, setCompaniesView, selectedCompanyIndex, setSelectedCompany } =
     useModalStore();
   const [showSoundInquiry, setShowSoundInquiry] = useState(false);
+  const [showContractingInquiry, setShowContractingInquiry] = useState(false);
 
-  const handleSoundInquiry = () => {
+  const handleCompanyInquiry = (company: Company) => {
+    if (company.inquiryType === "contracting") {
+      setShowContractingInquiry(true);
+      return;
+    }
+
     setShowSoundInquiry(true);
   };
 
@@ -99,10 +74,10 @@ export default function CompaniesModal() {
             companies={companies}
             currentIndex={selectedCompanyIndex}
             setCurrentIndex={setSelectedCompany}
-            onSoundInquiry={handleSoundInquiry}
+            onCompanyInquiry={handleCompanyInquiry}
           />
         ) : (
-          <ListView companies={companies} onSoundInquiry={handleSoundInquiry} />
+          <ListView companies={companies} onCompanyInquiry={handleCompanyInquiry} />
         )}
       </div>
 
@@ -126,6 +101,7 @@ export default function CompaniesModal() {
     </motion.div>
 
     <SoundInquiryModal isOpen={showSoundInquiry} onClose={() => setShowSoundInquiry(false)} />
+    <ContractingInquiryModal isOpen={showContractingInquiry} onClose={() => setShowContractingInquiry(false)} />
     </>
   );
 }
@@ -134,12 +110,12 @@ function SliderView({
   companies,
   currentIndex,
   setCurrentIndex,
-  onSoundInquiry,
+  onCompanyInquiry,
 }: {
   companies: Company[];
   currentIndex: number;
   setCurrentIndex: (index: number) => void;
-  onSoundInquiry: () => void;
+  onCompanyInquiry: (company: Company) => void;
 }) {
   const current = companies[currentIndex];
 
@@ -185,7 +161,7 @@ function SliderView({
               <p className="mb-5 max-w-xl text-sm text-on-surface-variant sm:mb-6 sm:text-base">
                 {current.description}
               </p>
-              {current.href.startsWith("/") ? (
+              {current.href?.startsWith("/") ? (
                 <Link
                   href={current.href}
                   className="inline-block px-8 py-3 font-bold text-sm uppercase tracking-wider transition-all btn-gold"
@@ -195,7 +171,7 @@ function SliderView({
               ) : (
                 <button
                   type="button"
-                  onClick={onSoundInquiry}
+                  onClick={() => onCompanyInquiry(current)}
                   className="inline-block px-8 py-3 font-bold text-sm uppercase tracking-wider transition-all btn-ghost"
                 >
                   {current.cta}
@@ -254,13 +230,13 @@ function SliderView({
 
 function ListView({
   companies,
-  onSoundInquiry,
+  onCompanyInquiry,
 }: {
   companies: Company[];
-  onSoundInquiry: () => void;
+  onCompanyInquiry: (company: Company) => void;
 }) {
   return (
-    <div className="grid md:grid-cols-2 gap-6">
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {companies.map((company, index) => (
         <motion.div
           key={company.id}
@@ -288,7 +264,7 @@ function ListView({
             <p className="text-on-surface-variant text-sm mb-4 line-clamp-2">
               {company.description}
             </p>
-            {company.href.startsWith("/") ? (
+            {company.href?.startsWith("/") ? (
               <Link
                 href={company.href}
                 className="inline-block px-6 py-2 font-bold text-sm uppercase tracking-wider transition-all btn-gold"
@@ -298,7 +274,7 @@ function ListView({
             ) : (
               <button
                 type="button"
-                onClick={onSoundInquiry}
+                onClick={() => onCompanyInquiry(company)}
                 className="inline-block px-6 py-2 font-bold text-sm uppercase tracking-wider transition-all btn-ghost"
               >
                 {company.cta}

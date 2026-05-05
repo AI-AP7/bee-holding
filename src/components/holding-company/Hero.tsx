@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { useModalStore } from "@/lib/store";
 import Image from "next/image";
+import { companyCount } from "@/lib/companies";
 
 export default function Hero() {
   const { openModal } = useModalStore();
@@ -60,7 +61,7 @@ export default function Hero() {
           className="mt-16 grid gap-6 sm:grid-cols-3 sm:gap-8"
         >
           {[
-            { label: "Companies", value: "2" },
+            { label: "Companies", value: String(companyCount) },
             { label: "Experience", value: "20+ Years" },
             { label: "Commitment", value: "Excellence" },
           ].map((stat, index) => (
