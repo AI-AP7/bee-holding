@@ -75,10 +75,12 @@ Create a `.env.local` file:
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+# Also accepted: SUPABASE_SERVICE_KEY
 
 # Square
 NEXT_PUBLIC_SQUARE_ENVIRONMENT=sandbox
 SQUARE_ACCESS_TOKEN=your-access-token
+# Also accepted: SQUARE_ACCESS_KEY
 SQUARE_APPLICATION_ID=your-app-id
 SQUARE_LOCATION_ID=your-location-id
 SQUARE_WEBHOOK_SIGNATURE_KEY=your-webhook-key

@@ -100,6 +100,19 @@ export function calculateBookingTotals(
   };
 }
 
+export function normalizeAddress(value: string | null | undefined) {
+  return (value || "").trim().replace(/\s+/g, " ");
+}
+
+export function isLikelyExactAddress(value: string | null | undefined) {
+  const address = normalizeAddress(value);
+  const hasStreetNumber = /\b\d{1,6}[A-Za-z]?\b/.test(address);
+  const hasStreetName = /\b[A-Za-z][A-Za-z.'-]*\s+(?:st|street|ave|avenue|rd|road|dr|drive|blvd|boulevard|ln|lane|ct|court|cir|circle|pl|place|pkwy|parkway|ter|terrace|hwy|highway|way|route|rte|sq|square|trail|trl)\b/i.test(address);
+  const hasCityState = /,\s*[A-Za-z .'-]{2,},\s*(?:[A-Z]{2}|[A-Za-z .'-]{4,})(?:\s+\d{5}(?:-\d{4})?)?\b/.test(address);
+
+  return address.length >= 12 && hasStreetNumber && hasStreetName && hasCityState;
+}
+
 export function addHoursToTime(time: string, hours: number) {
   const [hourString, minuteString = "00"] = time.split(":");
   const hour = Number.parseInt(hourString, 10);

@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { addHoursToTime } from "@/lib/limo";
+import { getSquareAccessToken, getSupabaseServiceKey } from "@/lib/server-env";
 
 const squareEnvironment = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT || "sandbox";
 const squareWebhookKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY || "";
-const squareAccessToken = process.env.SQUARE_ACCESS_TOKEN || "";
+const squareAccessToken = getSquareAccessToken();
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const supabaseServiceKey = getSupabaseServiceKey();
 
 const squareApiBase =
   squareEnvironment === "production"

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { addHoursToTime, buildSquareStartAt, calculateBookingTotals, type BookingServiceType, type FleetVehicle } from "@/lib/limo";
+import { addHoursToTime, buildSquareStartAt, calculateBookingTotals, isLikelyExactAddress, normalizeAddress, type BookingServiceType, type FleetVehicle } from "@/lib/limo";
+import { getSquareAccessToken, getSupabaseServiceKey } from "@/lib/server-env";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const supabaseServiceKey = getSupabaseServiceKey();
 const squareEnvironment = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT || "sandbox";
-const squareAccessToken = process.env.SQUARE_ACCESS_TOKEN || "";
+const squareAccessToken = getSquareAccessToken();
 const squareLocationId = process.env.SQUARE_LOCATION_ID || "";
 const bookingTimeZone = process.env.BOOKING_TIME_ZONE || "America/New_York";
 
@@ -162,17 +163,33 @@ export async function POST(request: NextRequest) {
       customerName,
       customerEmail,
       customerPhone,
-      pickupLocation,
-      dropoffLocation,
+      pickupLocation: rawPickupLocation,
+      dropoffLocation: rawDropoffLocation,
       specialRequests,
     } = body;
+    const pickupLocation = normalizeAddress(rawPickupLocation);
+    const dropoffLocation = normalizeAddress(rawDropoffLocation);
 
     if (!vehicleId || !date || !time || !serviceType || !serviceArea || !customerName || !customerEmail || !customerPhone || !pickupLocation) {
       return NextResponse.json({ error: "Missing required booking fields." }, { status: 400 });
     }
 
+    if (!isLikelyExactAddress(pickupLocation)) {
+      return NextResponse.json(
+        { error: "Pickup location must be a full street address with city and state." },
+        { status: 400 }
+      );
+    }
+
     if (serviceType === "point_to_point" && !dropoffLocation) {
       return NextResponse.json({ error: "Dropoff location is required for point-to-point service." }, { status: 400 });
+    }
+
+    if (serviceType === "point_to_point" && !isLikelyExactAddress(dropoffLocation)) {
+      return NextResponse.json(
+        { error: "Dropoff location must be a full street address with city and state." },
+        { status: 400 }
+      );
     }
 
     const supabase = getSupabase();

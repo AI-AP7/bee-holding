@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getSquareAccessToken, getSupabaseServiceKey } from "@/lib/server-env";
 
 const SQUARE_ENV = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT || "sandbox";
-const SQUARE_ACCESS_TOKEN = process.env.SQUARE_ACCESS_TOKEN || "";
+const SQUARE_ACCESS_TOKEN = getSquareAccessToken();
 const SQUARE_LOCATION_ID = process.env.SQUARE_LOCATION_ID || "";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const SUPABASE_SERVICE_KEY = getSupabaseServiceKey();
 
 const SQUARE_API_BASE = SQUARE_ENV === "production"
   ? "https://connect.squareup.com/v2"

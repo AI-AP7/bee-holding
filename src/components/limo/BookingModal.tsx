@@ -7,6 +7,8 @@ import {
   SERVICE_AREAS,
   calculateBookingTotals,
   formatCurrency,
+  isLikelyExactAddress,
+  normalizeAddress,
 } from "@/lib/limo";
 import SquarePaymentForm from "./SquarePaymentForm";
 
@@ -82,6 +84,7 @@ export default function BookingModal({
   });
   const [bookingStatus, setBookingStatus] = useState<BookingStatus>("idle");
   const [bookingError, setBookingError] = useState("");
+  const [addressError, setAddressError] = useState("");
   const [paymentError, setPaymentError] = useState("");
   const [createdBookingId, setCreatedBookingId] = useState<string | null>(null);
   const [squareCustomerId, setSquareCustomerId] = useState<string | null>(null);
@@ -220,7 +223,22 @@ export default function BookingModal({
       return;
     }
 
-    if (!selectedVehicle || !selectedDate || !pickupLocation || !formData.customerName || !formData.customerEmail || !formData.customerPhone) {
+    const normalizedPickupLocation = normalizeAddress(pickupLocation);
+    const normalizedDropoffLocation = normalizeAddress(dropoffLocation);
+
+    if (!selectedVehicle || !selectedDate || !normalizedPickupLocation || !formData.customerName || !formData.customerEmail || !formData.customerPhone) {
+      return;
+    }
+
+    if (!isLikelyExactAddress(normalizedPickupLocation)) {
+      setBookingError("Pickup location must be a full street address with city and state.");
+      setCurrentStep(1);
+      return;
+    }
+
+    if (serviceType === "point_to_point" && !isLikelyExactAddress(normalizedDropoffLocation)) {
+      setBookingError("Dropoff location must be a full street address with city and state.");
+      setCurrentStep(1);
       return;
     }
 
@@ -240,8 +258,8 @@ export default function BookingModal({
           hours: selectedHours,
           serviceType,
           serviceArea: selectedArea,
-          pickupLocation,
-          dropoffLocation: serviceType === "point_to_point" ? dropoffLocation : "",
+          pickupLocation: normalizedPickupLocation,
+          dropoffLocation: serviceType === "point_to_point" ? normalizedDropoffLocation : "",
           customerName: formData.customerName,
           customerEmail: formData.customerEmail,
           customerPhone: formData.customerPhone,
@@ -291,6 +309,7 @@ export default function BookingModal({
     });
     setBookingStatus("idle");
     setBookingError("");
+    setAddressError("");
     setPaymentError("");
     setCreatedBookingId(null);
     setSquareCustomerId(null);
@@ -326,6 +345,21 @@ export default function BookingModal({
     !!selectedDate &&
     !!pickupLocation.trim() &&
     (serviceType === "hourly" || !!dropoffLocation.trim());
+
+  const validateStepOne = () => {
+    if (!isLikelyExactAddress(pickupLocation)) {
+      setAddressError("Enter the pickup as a full street address with city and state.");
+      return false;
+    }
+
+    if (serviceType === "point_to_point" && !isLikelyExactAddress(dropoffLocation)) {
+      setAddressError("Enter the dropoff as a full street address with city and state.");
+      return false;
+    }
+
+    setAddressError("");
+    return true;
+  };
 
   const canContinueFromStepThree =
     !!formData.customerName.trim() &&
@@ -492,7 +526,7 @@ export default function BookingModal({
 
                     <div>
                       <label htmlFor="pickup-location" className="mb-2 block text-sm text-on-surface-variant">
-                        Pickup Location *
+                        Pickup Address *
                       </label>
                       <input
                         id="pickup-location"
@@ -501,8 +535,11 @@ export default function BookingModal({
                         type="text"
                         autoComplete="street-address"
                         value={pickupLocation}
-                        onChange={(event) => setPickupLocation(event.target.value)}
-                        placeholder="123 Main St, City, State…"
+                        onChange={(event) => {
+                          setPickupLocation(event.target.value);
+                          setAddressError("");
+                        }}
+                        placeholder="123 Main St, Baltimore, MD 21201"
                         className="w-full rounded-lg border border-outline bg-surface-mid px-4 py-3 text-on-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
                       />
                     </div>
@@ -510,18 +547,27 @@ export default function BookingModal({
                     {serviceType === "point_to_point" && (
                       <div>
                         <label htmlFor="dropoff-location" className="mb-2 block text-sm text-on-surface-variant">
-                          Dropoff Location *
+                          Dropoff Address *
                         </label>
                         <input
                           id="dropoff-location"
                           name="dropoffLocation"
                           type="text"
-                          autoComplete="off"
+                          autoComplete="street-address"
                           value={dropoffLocation}
-                          onChange={(event) => setDropoffLocation(event.target.value)}
-                          placeholder="456 Destination, City, State…"
+                          onChange={(event) => {
+                            setDropoffLocation(event.target.value);
+                            setAddressError("");
+                          }}
+                          placeholder="456 Destination Ave, Washington, DC 20001"
                           className="w-full rounded-lg border border-outline bg-surface-mid px-4 py-3 text-on-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
                         />
+                      </div>
+                    )}
+
+                    {addressError && (
+                      <div className="rounded-lg border border-red-500 bg-red-500/20 p-4" aria-live="polite">
+                        <p className="text-sm text-red-300">{addressError}</p>
                       </div>
                     )}
 
@@ -806,12 +852,12 @@ export default function BookingModal({
                         </div>
                         <div className="flex justify-between gap-4">
                           <span className="text-on-surface-variant">Pickup Location</span>
-                          <span className="text-right text-on-surface">{pickupLocation}</span>
+                          <span className="text-right text-on-surface">{normalizeAddress(pickupLocation)}</span>
                         </div>
                         {serviceType === "point_to_point" && (
                           <div className="flex justify-between gap-4">
                             <span className="text-on-surface-variant">Dropoff</span>
-                            <span className="text-right text-on-surface">{dropoffLocation}</span>
+                            <span className="text-right text-on-surface">{normalizeAddress(dropoffLocation)}</span>
                           </div>
                         )}
                         <div className="flex justify-between">
@@ -936,7 +982,13 @@ export default function BookingModal({
                 {currentStep < 4 && (
                   <button
                     type="button"
-                    onClick={() => setCurrentStep((current) => (current + 1) as Step)}
+                    onClick={() => {
+                      if (currentStep === 1 && !validateStepOne()) {
+                        return;
+                      }
+
+                      setCurrentStep((current) => (current + 1) as Step);
+                    }}
                     disabled={(currentStep === 1 && !canContinueFromStepOne) || (currentStep === 3 && !canContinueFromStepThree)}
                     className="btn-lime px-8 py-3 disabled:cursor-not-allowed disabled:opacity-50"
                   >

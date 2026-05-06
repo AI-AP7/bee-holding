@@ -1,8 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
+import { getSquareAccessToken, getSupabaseServiceKey } from "../src/lib/server-env";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const squareAccessToken = process.env.SQUARE_ACCESS_TOKEN || "";
+const supabaseServiceKey = getSupabaseServiceKey();
+const squareAccessToken = getSquareAccessToken();
 const squareEnv = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT || "sandbox";
 
 const squareApiBase = squareEnv === "production"
