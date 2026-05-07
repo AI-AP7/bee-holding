@@ -4,6 +4,8 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { FleetVehicle } from "@/lib/limo";
 import {
+  DESTINATION_MILE_RATE,
+  INCLUDED_DESTINATION_MILES,
   SERVICE_AREAS,
   calculateBookingTotals,
   formatCurrency,
@@ -24,6 +26,35 @@ type BookingApiResponse = {
   };
   message?: string;
 };
+
+type DistanceApiResponse =
+  | {
+      success: true;
+      miles: number;
+      distanceText: string;
+      durationText: string | null;
+    }
+  | {
+      success?: false;
+      error?: string;
+    };
+
+type AddressSuggestion = {
+  id: string;
+  address: string;
+  city: string;
+  state: string;
+};
+
+type AddressSearchApiResponse =
+  | {
+      success: true;
+      suggestions: AddressSuggestion[];
+    }
+  | {
+      success?: false;
+      error?: string;
+    };
 
 const addOns = [
   { id: "red-carpet", name: "10ft Red Carpet", price: 45, category: "service" },
@@ -63,6 +94,7 @@ export default function BookingModal({
   const descriptionId = useId();
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const firstFieldRef = useRef<HTMLInputElement | null>(null);
+  const dropoffFieldRef = useRef<HTMLInputElement | null>(null);
   const createBookingRequestRef = useRef<Promise<void> | null>(null);
 
   const [currentStep, setCurrentStep] = useState<Step>(1);
@@ -74,6 +106,13 @@ export default function BookingModal({
   const [serviceType, setServiceType] = useState<"hourly" | "point_to_point">("hourly");
   const [pickupLocation, setPickupLocation] = useState("");
   const [dropoffLocation, setDropoffLocation] = useState("");
+  const [destinationMiles, setDestinationMiles] = useState<number | null>(null);
+  const [distanceText, setDistanceText] = useState("");
+  const [distanceError, setDistanceError] = useState("");
+  const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
+  const [pickupSuggestions, setPickupSuggestions] = useState<AddressSuggestion[]>([]);
+  const [dropoffSuggestions, setDropoffSuggestions] = useState<AddressSuggestion[]>([]);
+  const [addressSearchError, setAddressSearchError] = useState("");
   const [selectedArea, setSelectedArea] = useState("MD");
   const [selectedAddOns, setSelectedAddOns] = useState<Array<{ id: string; name: string; price: number }>>([]);
   const [formData, setFormData] = useState({
@@ -94,14 +133,36 @@ export default function BookingModal({
     () => vehicles.find((vehicle) => vehicle.id === selectedVehicle) ?? null,
     [selectedVehicle, vehicles]
   );
+  const effectiveDestinationMiles = destinationMiles ?? 0;
 
   const totals = calculateBookingTotals(
     selectedVehicleData,
     serviceType,
     selectedArea,
     selectedHours,
-    selectedAddOns.reduce((sum, item) => sum + item.price, 0)
+    selectedAddOns.reduce((sum, item) => sum + item.price, 0),
+    effectiveDestinationMiles
   );
+
+  const resetDistance = () => {
+    setDestinationMiles(null);
+    setDistanceText("");
+    setDistanceError("");
+  };
+
+  const selectAddressSuggestion = (field: "pickup" | "dropoff", address: string) => {
+    if (field === "pickup") {
+      setPickupLocation(address);
+      setPickupSuggestions([]);
+    } else {
+      setDropoffLocation(address);
+      setDropoffSuggestions([]);
+    }
+
+    setAddressSearchError("");
+    setAddressError("");
+    resetDistance();
+  };
 
   useEffect(() => {
     if (!isOpen) {
@@ -139,6 +200,129 @@ export default function BookingModal({
 
     return () => window.clearTimeout(timer);
   }, [isOpen, currentStep]);
+
+  const fetchAddressSuggestions = useCallback(
+    (query: string, field: "pickup" | "dropoff", signal: AbortSignal) => {
+      const setSuggestions = field === "pickup" ? setPickupSuggestions : setDropoffSuggestions;
+
+      if (query.trim().length < 3) {
+        setSuggestions([]);
+        return Promise.resolve();
+      }
+
+      return fetch(`/api/address-search?q=${encodeURIComponent(query)}`, { signal })
+        .then(async (response) => {
+          const data = (await response.json()) as AddressSearchApiResponse;
+          if (!response.ok || !data.success) {
+            throw new Error("error" in data ? data.error || "Address search failed." : "Address search failed.");
+          }
+
+          setAddressSearchError("");
+          setSuggestions(data.suggestions);
+        })
+        .catch((error) => {
+          if (error instanceof DOMException && error.name === "AbortError") {
+            return;
+          }
+
+          setSuggestions([]);
+          setAddressSearchError(error instanceof Error ? error.message : "Address search failed.");
+        });
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!isOpen || currentStep !== 1) {
+      return;
+    }
+
+    const abortController = new AbortController();
+    const timer = window.setTimeout(() => {
+      void fetchAddressSuggestions(pickupLocation, "pickup", abortController.signal);
+    }, 250);
+
+    return () => {
+      abortController.abort();
+      window.clearTimeout(timer);
+    };
+  }, [currentStep, fetchAddressSuggestions, isOpen, pickupLocation]);
+
+  useEffect(() => {
+    if (!isOpen || currentStep !== 1) {
+      return;
+    }
+
+    const abortController = new AbortController();
+    const timer = window.setTimeout(() => {
+      void fetchAddressSuggestions(dropoffLocation, "dropoff", abortController.signal);
+    }, 250);
+
+    return () => {
+      abortController.abort();
+      window.clearTimeout(timer);
+    };
+  }, [currentStep, dropoffLocation, fetchAddressSuggestions, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const pickup = normalizeAddress(pickupLocation);
+    const dropoff = normalizeAddress(dropoffLocation);
+
+    if (!pickup || !dropoff || !isLikelyExactAddress(pickup) || !isLikelyExactAddress(dropoff)) {
+      setDestinationMiles(null);
+      setDistanceText("");
+      setDistanceError("");
+      setIsCalculatingDistance(false);
+      return;
+    }
+
+    const abortController = new AbortController();
+    const timer = window.setTimeout(() => {
+      setIsCalculatingDistance(true);
+      setDistanceError("");
+
+      fetch("/api/distance", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ pickupLocation: pickup, dropoffLocation: dropoff }),
+        signal: abortController.signal,
+      })
+        .then(async (response) => {
+          const data = (await response.json()) as DistanceApiResponse;
+          if (!response.ok || !data.success) {
+            throw new Error("error" in data ? data.error || "Mileage could not be calculated." : "Mileage could not be calculated.");
+          }
+
+          setDestinationMiles(data.miles);
+          setDistanceText(data.distanceText);
+        })
+        .catch((error) => {
+          if (error instanceof DOMException && error.name === "AbortError") {
+            return;
+          }
+
+          setDestinationMiles(null);
+          setDistanceText("");
+          setDistanceError(error instanceof Error ? error.message : "Mileage could not be calculated.");
+        })
+        .finally(() => {
+          if (!abortController.signal.aborted) {
+            setIsCalculatingDistance(false);
+          }
+        });
+    }, 500);
+
+    return () => {
+      abortController.abort();
+      window.clearTimeout(timer);
+    };
+  }, [dropoffLocation, isOpen, pickupLocation]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -236,8 +420,20 @@ export default function BookingModal({
       return;
     }
 
-    if (serviceType === "point_to_point" && !isLikelyExactAddress(normalizedDropoffLocation)) {
+    if (!normalizedDropoffLocation) {
+      setBookingError("Destination address is required.");
+      setCurrentStep(1);
+      return;
+    }
+
+    if (!isLikelyExactAddress(normalizedDropoffLocation)) {
       setBookingError("Dropoff location must be a full street address with city and state.");
+      setCurrentStep(1);
+      return;
+    }
+
+    if (isCalculatingDistance || !destinationMiles || effectiveDestinationMiles <= 0) {
+      setBookingError("Mileage is still being calculated. Check both addresses and try again.");
       setCurrentStep(1);
       return;
     }
@@ -259,7 +455,8 @@ export default function BookingModal({
           serviceType,
           serviceArea: selectedArea,
           pickupLocation: normalizedPickupLocation,
-          dropoffLocation: serviceType === "point_to_point" ? normalizedDropoffLocation : "",
+          dropoffLocation: normalizedDropoffLocation,
+          addOnsTotal: selectedAddOns.reduce((sum, item) => sum + item.price, 0),
           customerName: formData.customerName,
           customerEmail: formData.customerEmail,
           customerPhone: formData.customerPhone,
@@ -299,6 +496,10 @@ export default function BookingModal({
     setServiceType("hourly");
     setPickupLocation("");
     setDropoffLocation("");
+    setDestinationMiles(null);
+    setDistanceText("");
+    setDistanceError("");
+    setIsCalculatingDistance(false);
     setSelectedArea("MD");
     setSelectedAddOns([]);
     setFormData({
@@ -344,7 +545,10 @@ export default function BookingModal({
     !!selectedVehicle &&
     !!selectedDate &&
     !!pickupLocation.trim() &&
-    (serviceType === "hourly" || !!dropoffLocation.trim());
+    !!dropoffLocation.trim() &&
+    !!destinationMiles &&
+    effectiveDestinationMiles > 0 &&
+    !isCalculatingDistance;
 
   const validateStepOne = () => {
     if (!isLikelyExactAddress(pickupLocation)) {
@@ -352,8 +556,20 @@ export default function BookingModal({
       return false;
     }
 
-    if (serviceType === "point_to_point" && !isLikelyExactAddress(dropoffLocation)) {
+    const normalizedDropoffLocation = normalizeAddress(dropoffLocation);
+
+    if (!normalizedDropoffLocation) {
+      setAddressError("Enter a destination address.");
+      return false;
+    }
+
+    if (!isLikelyExactAddress(normalizedDropoffLocation)) {
       setAddressError("Enter the dropoff as a full street address with city and state.");
+      return false;
+    }
+
+    if (isCalculatingDistance || !destinationMiles || effectiveDestinationMiles <= 0) {
+      setAddressError(distanceError || "Mileage is still being calculated. Check both addresses and try again.");
       return false;
     }
 
@@ -528,40 +744,90 @@ export default function BookingModal({
                       <label htmlFor="pickup-location" className="mb-2 block text-sm text-on-surface-variant">
                         Pickup Address *
                       </label>
-                      <input
-                        id="pickup-location"
-                        ref={firstFieldRef}
-                        name="pickupLocation"
-                        type="text"
-                        autoComplete="street-address"
-                        value={pickupLocation}
-                        onChange={(event) => {
-                          setPickupLocation(event.target.value);
-                          setAddressError("");
-                        }}
-                        placeholder="123 Main St, Baltimore, MD 21201"
-                        className="w-full rounded-lg border border-outline bg-surface-mid px-4 py-3 text-on-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
-                      />
-                    </div>
-
-                    {serviceType === "point_to_point" && (
-                      <div>
-                        <label htmlFor="dropoff-location" className="mb-2 block text-sm text-on-surface-variant">
-                          Dropoff Address *
-                        </label>
+                      <div className="relative">
                         <input
-                          id="dropoff-location"
-                          name="dropoffLocation"
+                          id="pickup-location"
+                          ref={firstFieldRef}
+                          name="pickupLocation"
                           type="text"
                           autoComplete="street-address"
-                          value={dropoffLocation}
+                          value={pickupLocation}
+                          onBlur={() => window.setTimeout(() => setPickupSuggestions([]), 150)}
                           onChange={(event) => {
-                            setDropoffLocation(event.target.value);
+                            setPickupLocation(event.target.value);
                             setAddressError("");
+                            resetDistance();
                           }}
-                          placeholder="456 Destination Ave, Washington, DC 20001"
+                          placeholder="123 Main St, Baltimore, MD 21201"
                           className="w-full rounded-lg border border-outline bg-surface-mid px-4 py-3 text-on-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
                         />
+                        {pickupSuggestions.length > 0 && (
+                          <AddressSuggestionList
+                            suggestions={pickupSuggestions}
+                            onSelect={(address) => selectAddressSuggestion("pickup", address)}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                        <label htmlFor="dropoff-location" className="mb-2 block text-sm text-on-surface-variant">
+                          Destination Address *
+                        </label>
+                        <div className="relative">
+                          <input
+                            id="dropoff-location"
+                            ref={dropoffFieldRef}
+                            name="dropoffLocation"
+                            type="text"
+                            autoComplete="street-address"
+                            value={dropoffLocation}
+                            onBlur={() => window.setTimeout(() => setDropoffSuggestions([]), 150)}
+                            onChange={(event) => {
+                              setDropoffLocation(event.target.value);
+                              setAddressError("");
+                              resetDistance();
+                            }}
+                            placeholder="456 Destination Ave, Washington, DC 20001"
+                            className="w-full rounded-lg border border-outline bg-surface-mid px-4 py-3 text-on-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
+                          />
+                          {dropoffSuggestions.length > 0 && (
+                            <AddressSuggestionList
+                              suggestions={dropoffSuggestions}
+                              onSelect={(address) => selectAddressSuggestion("dropoff", address)}
+                            />
+                          )}
+                        </div>
+                      </div>
+
+                    {addressSearchError && (
+                      <p className="text-xs text-red-300">{addressSearchError}</p>
+                    )}
+
+                    {dropoffLocation.trim() && (
+                      <div className="rounded-lg border border-outline bg-surface-mid p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-semibold text-on-surface">Destination Mileage</p>
+                            <p className="mt-1 text-xs text-on-surface-variant">
+                              First {INCLUDED_DESTINATION_MILES} destination miles are included. Additional miles are {formatCurrency(DESTINATION_MILE_RATE)}/mile.
+                            </p>
+                          </div>
+                          <span className="text-right text-sm font-bold text-lime">
+                            {isCalculatingDistance ? "Calculating..." : distanceText || "Pending"}
+                          </span>
+                        </div>
+                        {distanceError && (
+                          <p className="mt-3 text-xs text-red-300">{distanceError}</p>
+                        )}
+                        <p className="mt-2 text-xs text-on-surface-variant">
+                          Mileage is calculated automatically from pickup to destination.
+                        </p>
+                        {totals.destinationMileageFee > 0 && (
+                          <p className="mt-1 text-xs text-lime">
+                            Destination mileage charge: {formatCurrency(totals.destinationMileageFee)}
+                          </p>
+                        )}
                       </div>
                     )}
 
@@ -854,9 +1120,9 @@ export default function BookingModal({
                           <span className="text-on-surface-variant">Pickup Location</span>
                           <span className="text-right text-on-surface">{normalizeAddress(pickupLocation)}</span>
                         </div>
-                        {serviceType === "point_to_point" && (
+                        {dropoffLocation.trim() && (
                           <div className="flex justify-between gap-4">
-                            <span className="text-on-surface-variant">Dropoff</span>
+                            <span className="text-on-surface-variant">Destination</span>
                             <span className="text-right text-on-surface">{normalizeAddress(dropoffLocation)}</span>
                           </div>
                         )}
@@ -880,6 +1146,22 @@ export default function BookingModal({
                           <span className="text-on-surface-variant">Base Total</span>
                           <span className="text-on-surface">{formatCurrency(totals.basePrice)}</span>
                         </div>
+                        {(serviceType === "point_to_point" || dropoffLocation.trim()) && (
+                          <>
+                            <div className="flex justify-between">
+                              <span className="text-on-surface-variant">Destination Miles</span>
+                              <span className="text-on-surface">
+                                {totals.destinationMiles.toFixed(1)} mi
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-on-surface-variant">
+                                Mileage Charge ({formatCurrency(DESTINATION_MILE_RATE)}/mi after {INCLUDED_DESTINATION_MILES})
+                              </span>
+                              <span className="text-on-surface">{formatCurrency(totals.destinationMileageFee)}</span>
+                            </div>
+                          </>
+                        )}
                         <div className="flex justify-between">
                           <span className="text-on-surface-variant">Fuel Fee (10%)</span>
                           <span className="text-on-surface">{formatCurrency(totals.fuelFee)}</span>
@@ -1012,5 +1294,36 @@ export default function BookingModal({
         </motion.div>
       </motion.div>
     </AnimatePresence>
+  );
+}
+
+function AddressSuggestionList({
+  suggestions,
+  onSelect,
+}: {
+  suggestions: AddressSuggestion[];
+  onSelect: (address: string) => void;
+}) {
+  return (
+    <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-lg border border-outline bg-surface-high shadow-xl">
+      {suggestions.map((suggestion) => (
+        <button
+          key={suggestion.id || suggestion.address}
+          type="button"
+          onMouseDown={(event) => {
+            event.preventDefault();
+            onSelect(suggestion.address);
+          }}
+          className="block w-full border-b border-outline/20 px-4 py-3 text-left text-sm text-on-surface transition-colors last:border-b-0 hover:bg-surface-highest"
+        >
+          <span className="block">{suggestion.address}</span>
+          {(suggestion.city || suggestion.state) && (
+            <span className="mt-1 block text-xs text-on-surface-variant">
+              {[suggestion.city, suggestion.state].filter(Boolean).join(", ")}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
   );
 }

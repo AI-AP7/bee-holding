@@ -43,6 +43,8 @@ export const VEHICLE_TYPE_LABELS: Record<FleetVehicle["type"], string> = {
 export const FUEL_FEE_RATE = 0.1;
 export const TAX_RATE = 0.06;
 export const DEFAULT_GRATUITY = 60;
+export const INCLUDED_DESTINATION_MILES = 20;
+export const DESTINATION_MILE_RATE = 3.5;
 
 export function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-US", {
@@ -81,10 +83,13 @@ export function calculateBookingTotals(
   serviceType: BookingServiceType,
   selectedArea: string,
   selectedHours: number,
-  addOnsTotal: number
+  addOnsTotal: number,
+  destinationMiles = 0
 ) {
   const basePrice = calculateBasePrice(vehicle, serviceType, selectedArea, selectedHours);
-  const subtotal = basePrice + addOnsTotal;
+  const billableDestinationMiles = Math.max(0, destinationMiles - INCLUDED_DESTINATION_MILES);
+  const destinationMileageFee = billableDestinationMiles * DESTINATION_MILE_RATE;
+  const subtotal = basePrice + addOnsTotal + destinationMileageFee;
   const fuelFee = subtotal * FUEL_FEE_RATE;
   const tax = subtotal * TAX_RATE;
   const gratuity = DEFAULT_GRATUITY;
@@ -93,6 +98,9 @@ export function calculateBookingTotals(
     basePrice,
     subtotal,
     addOnsTotal,
+    destinationMiles,
+    billableDestinationMiles,
+    destinationMileageFee,
     fuelFee,
     tax,
     gratuity,
@@ -108,7 +116,10 @@ export function isLikelyExactAddress(value: string | null | undefined) {
   const address = normalizeAddress(value);
   const hasStreetNumber = /\b\d{1,6}[A-Za-z]?\b/.test(address);
   const hasStreetName = /\b[A-Za-z][A-Za-z.'-]*\s+(?:st|street|ave|avenue|rd|road|dr|drive|blvd|boulevard|ln|lane|ct|court|cir|circle|pl|place|pkwy|parkway|ter|terrace|hwy|highway|way|route|rte|sq|square|trail|trl)\b/i.test(address);
-  const hasCityState = /,\s*[A-Za-z .'-]{2,},\s*(?:[A-Z]{2}|[A-Za-z .'-]{4,})(?:\s+\d{5}(?:-\d{4})?)?\b/.test(address);
+  const hasCityState =
+    /,\s*[A-Za-z .'-]{2,},\s*(?:[A-Z]{2}|[A-Za-z .'-]{4,})(?:\s+\d{5}(?:-\d{4})?)?\b/.test(address) ||
+    /\b[A-Za-z .'-]{2,},\s*(?:[A-Z]{2}|[A-Za-z .'-]{4,})(?:\s+\d{5}(?:-\d{4})?)?\b/.test(address) ||
+    /\b(?:MD|DC|VA|PA|Maryland|Virginia|Pennsylvania|District of Columbia)\b(?:\s+\d{5}(?:-\d{4})?)?\b/i.test(address);
 
   return address.length >= 12 && hasStreetNumber && hasStreetName && hasCityState;
 }

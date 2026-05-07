@@ -9,6 +9,7 @@ const squareEnvironment = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT || "sandbox
 const squareAccessToken = getSquareAccessToken();
 const squareLocationId = process.env.SQUARE_LOCATION_ID || "";
 const bookingTimeZone = process.env.BOOKING_TIME_ZONE || "America/New_York";
+const tomtomApiKey = process.env.TOMTOM_API_KEY || "";
 
 const squareApiBase =
   squareEnvironment === "production"
@@ -33,6 +34,7 @@ interface BookingRequest {
   customerPhone: string;
   pickupLocation?: string;
   dropoffLocation?: string;
+  addOnsTotal?: number;
   specialRequests?: string;
 }
 
@@ -46,12 +48,81 @@ type AvailabilityResult = {
   status?: string;
 };
 
+type TomTomSearchResponse = {
+  status: string;
+  results?: Array<{
+    position?: {
+      lat: number;
+      lon: number;
+    };
+  }>;
+};
+
+type TomTomRouteResponse = {
+  routes?: Array<{
+    summary?: {
+      lengthInMeters?: number;
+    };
+  }>;
+};
+
 function validateEnvironment() {
   if (!supabaseUrl || !supabaseServiceKey || !squareAccessToken || !squareLocationId) {
     return "Missing required server environment variables.";
   }
 
+  if (!tomtomApiKey) {
+    return "Missing TomTom API key for mileage calculation.";
+  }
+
   return null;
+}
+
+async function calculateDrivingMiles(origin: string, destination: string) {
+  const [originPosition, destinationPosition] = await Promise.all([
+    geocodeAddress(origin),
+    geocodeAddress(destination),
+  ]);
+  const routeLocations = `${originPosition.lat},${originPosition.lon}:${destinationPosition.lat},${destinationPosition.lon}`;
+  const url = new URL(`https://api.tomtom.com/routing/1/calculateRoute/${routeLocations}/json`);
+  url.searchParams.set("key", tomtomApiKey);
+  url.searchParams.set("routeRepresentation", "summaryOnly");
+  url.searchParams.set("travelMode", "car");
+
+  const response = await fetch(url);
+  const data = (await response.json()) as TomTomRouteResponse;
+
+  if (!response.ok) {
+    throw new Error("Mileage could not be calculated.");
+  }
+
+  const lengthInMeters = data.routes?.[0]?.summary?.lengthInMeters;
+  if (!lengthInMeters) {
+    throw new Error("Mileage could not be calculated for those addresses.");
+  }
+
+  return lengthInMeters / 1609.344;
+}
+
+async function geocodeAddress(address: string) {
+  const url = new URL(`https://api.tomtom.com/search/2/search/${encodeURIComponent(address)}.json`);
+  url.searchParams.set("key", tomtomApiKey);
+  url.searchParams.set("countrySet", "US");
+  url.searchParams.set("limit", "1");
+
+  const response = await fetch(url);
+  const data = (await response.json()) as TomTomSearchResponse;
+
+  if (!response.ok) {
+    throw new Error("Address lookup failed.");
+  }
+
+  const position = data.results?.[0]?.position;
+  if (!position) {
+    throw new Error("Address could not be found.");
+  }
+
+  return position;
 }
 
 async function findOrCreateSquareCustomer(input: BookingRequest) {
@@ -165,10 +236,12 @@ export async function POST(request: NextRequest) {
       customerPhone,
       pickupLocation: rawPickupLocation,
       dropoffLocation: rawDropoffLocation,
+      addOnsTotal: rawAddOnsTotal = 0,
       specialRequests,
     } = body;
     const pickupLocation = normalizeAddress(rawPickupLocation);
     const dropoffLocation = normalizeAddress(rawDropoffLocation);
+    const addOnsTotal = Number(rawAddOnsTotal);
 
     if (!vehicleId || !date || !time || !serviceType || !serviceArea || !customerName || !customerEmail || !customerPhone || !pickupLocation) {
       return NextResponse.json({ error: "Missing required booking fields." }, { status: 400 });
@@ -181,15 +254,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (serviceType === "point_to_point" && !dropoffLocation) {
-      return NextResponse.json({ error: "Dropoff location is required for point-to-point service." }, { status: 400 });
+    if (!dropoffLocation) {
+      return NextResponse.json({ error: "Destination address is required." }, { status: 400 });
     }
 
-    if (serviceType === "point_to_point" && !isLikelyExactAddress(dropoffLocation)) {
+    if (!isLikelyExactAddress(dropoffLocation)) {
       return NextResponse.json(
         { error: "Dropoff location must be a full street address with city and state." },
         { status: 400 }
       );
+    }
+
+    if (!Number.isFinite(addOnsTotal) || addOnsTotal < 0) {
+      return NextResponse.json({ error: "Add-ons total is invalid." }, { status: 400 });
     }
 
     const supabase = getSupabase();
@@ -222,7 +299,16 @@ export async function POST(request: NextRequest) {
     }
 
     const squareCustomerId = await findOrCreateSquareCustomer(body);
-    const totalPrice = calculateBookingTotals(vehicle, serviceType, serviceArea, effectiveHours, 0).total;
+    const destinationMiles = await calculateDrivingMiles(pickupLocation, dropoffLocation);
+    const totals = calculateBookingTotals(
+      vehicle,
+      serviceType,
+      serviceArea,
+      effectiveHours,
+      addOnsTotal,
+      destinationMiles
+    );
+    const totalPrice = totals.total;
 
     const bookingResponse = await fetch(`${squareApiBase}/bookings`, {
       method: "POST",
@@ -250,6 +336,8 @@ export async function POST(request: NextRequest) {
             `Area: ${serviceArea}`,
             `Pickup: ${pickupLocation}`,
             dropoffLocation ? `Dropoff: ${dropoffLocation}` : "",
+            `Destination miles: ${destinationMiles.toFixed(1)}`,
+            totals.destinationMileageFee > 0 ? `Destination mileage fee: $${totals.destinationMileageFee.toFixed(2)}` : "",
             specialRequests ? `Notes: ${specialRequests}` : "",
           ]
             .filter(Boolean)
@@ -285,7 +373,14 @@ export async function POST(request: NextRequest) {
       total_hours: effectiveHours,
       total_price: totalPrice,
       status: "pending_payment",
-      notes: specialRequests || null,
+      notes: [
+        `Destination miles: ${destinationMiles.toFixed(1)}`,
+        totals.destinationMileageFee > 0 ? `Destination mileage fee: $${totals.destinationMileageFee.toFixed(2)}` : "",
+        addOnsTotal > 0 ? `Add-ons total: $${addOnsTotal.toFixed(2)}` : "",
+        specialRequests || "",
+      ]
+        .filter(Boolean)
+        .join("\n") || null,
     };
 
     const { data: booking, error: bookingInsertError } = await supabase
