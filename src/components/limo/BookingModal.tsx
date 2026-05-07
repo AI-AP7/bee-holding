@@ -56,6 +56,15 @@ type AddressSearchApiResponse =
       error?: string;
     };
 
+function formatTimeForDisplay(time: string) {
+  const [hourString, minuteString = "00"] = time.split(":");
+  const hour = Number(hourString);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 || 12;
+
+  return `${displayHour}:${minuteString.padStart(2, "0")} ${suffix}`;
+}
+
 const addOns = [
   { id: "red-carpet", name: "10ft Red Carpet", price: 45, category: "service" },
   { id: "beer", name: "Beer", price: 30, category: "alcohol" },
@@ -907,7 +916,7 @@ export default function BookingModal({
                         >
                           {times.map((time) => (
                             <option key={time} value={time}>
-                              {time}
+                              {formatTimeForDisplay(time)}
                             </option>
                           ))}
                         </select>
@@ -1129,7 +1138,7 @@ export default function BookingModal({
                         <div className="flex justify-between">
                           <span className="text-on-surface-variant">Date &amp; Time</span>
                           <span className="text-on-surface">
-                            {selectedDate} @ {selectedTime}
+                            {selectedDate} @ {formatTimeForDisplay(selectedTime)}
                           </span>
                         </div>
                         <div className="flex justify-between">
