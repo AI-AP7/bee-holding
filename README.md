@@ -83,6 +83,7 @@ SQUARE_ACCESS_TOKEN=your-access-token
 # Also accepted: SQUARE_ACCESS_KEY
 SQUARE_APPLICATION_ID=your-app-id
 SQUARE_LOCATION_ID=your-location-id
+SQUARE_TEAM_MEMBER_ID=optional-default-bookable-team-member-id
 SQUARE_WEBHOOK_SIGNATURE_KEY=your-webhook-key
 
 # Site URL

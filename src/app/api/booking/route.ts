@@ -8,6 +8,7 @@ const supabaseServiceKey = getSupabaseServiceKey();
 const squareEnvironment = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT || "sandbox";
 const squareAccessToken = getSquareAccessToken();
 const squareLocationId = process.env.SQUARE_LOCATION_ID || "";
+const squareTeamMemberId = process.env.SQUARE_TEAM_MEMBER_ID || "";
 const bookingTimeZone = process.env.BOOKING_TIME_ZONE || "America/New_York";
 const tomtomApiKey = process.env.TOMTOM_API_KEY || "";
 
@@ -40,6 +41,8 @@ interface BookingRequest {
 
 interface SquareCustomer {
   id: string;
+  phone_number?: string;
+  version?: number;
 }
 
 type AvailabilityResult = {
@@ -73,6 +76,26 @@ type SquareCatalogObjectResponse = {
   errors?: Array<{ detail?: string }>;
 };
 
+type SquareAvailabilityResponse = {
+  availabilities?: Array<{
+    start_at?: string;
+    appointment_segments?: Array<{
+      duration_minutes?: number;
+      service_variation_id?: string;
+      service_variation_version?: number;
+      team_member_id?: string;
+    }>;
+  }>;
+  errors?: Array<{ detail?: string }>;
+};
+
+type SquareAppointmentSegmentInput = {
+  service_variation_id: string;
+  service_variation_version: number;
+  team_member_id: string;
+  duration_minutes: number;
+};
+
 function validateEnvironment() {
   if (!supabaseUrl || !supabaseServiceKey || !squareAccessToken || !squareLocationId) {
     return "Missing required server environment variables.";
@@ -83,6 +106,14 @@ function validateEnvironment() {
   }
 
   return null;
+}
+
+function getSquareErrorMessage(errors?: Array<{ detail?: string }>, fallback = "Square request failed.") {
+  return errors?.map((error) => error.detail).filter(Boolean).join(" ") || fallback;
+}
+
+function addMinutesToIsoTimestamp(timestamp: string, minutes: number) {
+  return new Date(new Date(timestamp).getTime() + minutes * 60 * 1000).toISOString();
 }
 
 async function calculateDrivingMiles(origin: string, destination: string) {
@@ -149,6 +180,102 @@ async function getSquareServiceVariationVersion(serviceVariationId: string) {
   return data.object.version;
 }
 
+async function getSquareBookingSegment(
+  serviceVariationId: string,
+  startAt: string,
+  durationMinutes: number
+): Promise<SquareAppointmentSegmentInput> {
+  if (squareTeamMemberId) {
+    return {
+      service_variation_id: serviceVariationId,
+      service_variation_version: await getSquareServiceVariationVersion(serviceVariationId),
+      team_member_id: squareTeamMemberId,
+      duration_minutes: durationMinutes,
+    };
+  }
+
+  const response = await fetch(`${squareApiBase}/bookings/availability/search`, {
+    method: "POST",
+    headers: {
+      "Square-Version": "2024-01-18",
+      Authorization: `Bearer ${squareAccessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query: {
+        filter: {
+          start_at_range: {
+            start_at: startAt,
+            end_at: addMinutesToIsoTimestamp(startAt, Math.max(durationMinutes, 30)),
+          },
+          location_id: squareLocationId,
+          segment_filters: [
+            {
+              service_variation_id: serviceVariationId,
+            },
+          ],
+        },
+      },
+    }),
+  });
+  const data = (await response.json()) as SquareAvailabilityResponse;
+
+  if (!response.ok) {
+    throw new Error(getSquareErrorMessage(data.errors, "Square availability could not be checked."));
+  }
+
+  const requestedStart = new Date(startAt).getTime();
+  const availability = data.availabilities?.find((slot) => {
+    if (!slot.start_at) {
+      return false;
+    }
+
+    return new Date(slot.start_at).getTime() === requestedStart;
+  });
+  const segment =
+    availability?.appointment_segments?.find((item) => item.service_variation_id === serviceVariationId) ??
+    availability?.appointment_segments?.[0];
+
+  if (!segment?.team_member_id || !segment.service_variation_version) {
+    throw new Error(
+      "Selected time is not available in Square. Choose another pickup time or set SQUARE_TEAM_MEMBER_ID."
+    );
+  }
+
+  return {
+    service_variation_id: serviceVariationId,
+    service_variation_version: segment.service_variation_version,
+    team_member_id: segment.team_member_id,
+    duration_minutes: durationMinutes,
+  };
+}
+
+async function ensureSquareCustomerHasPhone(customer: SquareCustomer, phoneNumber: string) {
+  if (customer.phone_number) {
+    return customer.id;
+  }
+
+  const response = await fetch(`${squareApiBase}/customers/${customer.id}`, {
+    method: "PUT",
+    headers: {
+      "Square-Version": "2024-01-18",
+      Authorization: `Bearer ${squareAccessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      phone_number: phoneNumber,
+      version: customer.version,
+    }),
+  });
+  const data = (await response.json()) as { customer?: SquareCustomer; errors?: Array<{ detail?: string }> };
+
+  if (!response.ok || !data.customer?.id) {
+    throw new Error(getSquareErrorMessage(data.errors, "Failed to update Square customer phone number."));
+  }
+
+  return data.customer.id;
+}
+
 async function findOrCreateSquareCustomer(input: BookingRequest) {
   const customerSearchResponse = await fetch(`${squareApiBase}/customers/search`, {
     method: "POST",
@@ -175,7 +302,7 @@ async function findOrCreateSquareCustomer(input: BookingRequest) {
 
   const existingCustomer = searchData.customers?.[0];
   if (existingCustomer) {
-    return existingCustomer.id;
+    return ensureSquareCustomerHasPhone(existingCustomer, input.customerPhone);
   }
 
   const [givenName, ...familyNameParts] = input.customerName.trim().split(/\s+/);
@@ -198,7 +325,7 @@ async function findOrCreateSquareCustomer(input: BookingRequest) {
 
   const createData = (await createCustomerResponse.json()) as { customer?: SquareCustomer; errors?: Array<{ detail?: string }> };
   if (!createCustomerResponse.ok || !createData.customer?.id) {
-    throw new Error(createData.errors?.[0]?.detail || "Failed to create Square customer.");
+    throw new Error(getSquareErrorMessage(createData.errors, "Failed to create Square customer."));
   }
 
   return createData.customer.id;
@@ -322,9 +449,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: availabilityError }, { status: 409 });
     }
 
-    const squareCustomerId = await findOrCreateSquareCustomer(body);
+    const squareCustomerId = await findOrCreateSquareCustomer({
+      ...body,
+      customerEmail,
+      customerName,
+      customerPhone,
+    });
     const destinationMiles = await calculateDrivingMiles(pickupLocation, dropoffLocation);
-    const serviceVariationVersion = await getSquareServiceVariationVersion(vehicle.square_service_variation_id);
+    const appointmentSegment = await getSquareBookingSegment(
+      vehicle.square_service_variation_id,
+      startAt,
+      effectiveHours * 60
+    );
     const totals = calculateBookingTotals(
       vehicle,
       serviceType,
@@ -349,12 +485,7 @@ export async function POST(request: NextRequest) {
           location_id: squareLocationId,
           start_at: startAt,
           appointment_segments: [
-            {
-              service_variation_id: vehicle.square_service_variation_id,
-              service_variation_version: serviceVariationVersion,
-              team_member_id: "PUBLIC",
-              duration_minutes: effectiveHours * 60,
-            },
+            appointmentSegment,
           ],
           customer_note: [
             `Vehicle: ${vehicle.name}`,
