@@ -66,6 +66,13 @@ type TomTomRouteResponse = {
   }>;
 };
 
+type SquareCatalogObjectResponse = {
+  object?: {
+    version?: number;
+  };
+  errors?: Array<{ detail?: string }>;
+};
+
 function validateEnvironment() {
   if (!supabaseUrl || !supabaseServiceKey || !squareAccessToken || !squareLocationId) {
     return "Missing required server environment variables.";
@@ -123,6 +130,23 @@ async function geocodeAddress(address: string) {
   }
 
   return position;
+}
+
+async function getSquareServiceVariationVersion(serviceVariationId: string) {
+  const response = await fetch(`${squareApiBase}/catalog/object/${serviceVariationId}`, {
+    headers: {
+      "Square-Version": "2024-01-18",
+      Authorization: `Bearer ${squareAccessToken}`,
+      "Content-Type": "application/json",
+    },
+  });
+  const data = (await response.json()) as SquareCatalogObjectResponse;
+
+  if (!response.ok || !data.object?.version) {
+    throw new Error(data.errors?.[0]?.detail || "Square service variation version could not be found.");
+  }
+
+  return data.object.version;
 }
 
 async function findOrCreateSquareCustomer(input: BookingRequest) {
@@ -300,6 +324,7 @@ export async function POST(request: NextRequest) {
 
     const squareCustomerId = await findOrCreateSquareCustomer(body);
     const destinationMiles = await calculateDrivingMiles(pickupLocation, dropoffLocation);
+    const serviceVariationVersion = await getSquareServiceVariationVersion(vehicle.square_service_variation_id);
     const totals = calculateBookingTotals(
       vehicle,
       serviceType,
@@ -326,13 +351,14 @@ export async function POST(request: NextRequest) {
           appointment_segments: [
             {
               service_variation_id: vehicle.square_service_variation_id,
+              service_variation_version: serviceVariationVersion,
               team_member_id: "PUBLIC",
               duration_minutes: effectiveHours * 60,
-              service_note: serviceType === "point_to_point" ? "Point-to-point service" : "Hourly service",
             },
           ],
           customer_note: [
             `Vehicle: ${vehicle.name}`,
+            `Service: ${serviceType === "point_to_point" ? "Point-to-point service" : "Hourly service"}`,
             `Area: ${serviceArea}`,
             `Pickup: ${pickupLocation}`,
             dropoffLocation ? `Dropoff: ${dropoffLocation}` : "",
@@ -352,7 +378,7 @@ export async function POST(request: NextRequest) {
     };
     if (!bookingResponse.ok || !bookingData.booking?.id) {
       return NextResponse.json(
-        { error: bookingData.errors?.[0]?.detail || "Square rejected the booking." },
+        { error: bookingData.errors?.map((error) => error.detail).filter(Boolean).join(" ") || "Square rejected the booking." },
         { status: bookingResponse.status || 502 }
       );
     }
